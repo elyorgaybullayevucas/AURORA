@@ -1,3 +1,10 @@
+# Project-specific
+data/
+checkpoints/
+logs/
+*.pt
+*.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
