@@ -60,12 +60,14 @@ class AURORACFModel(nn.Module):
         nn.init.zeros_(self.rel_copy_mix.weight)  # start at 0.5 (sigmoid(0))
 
         # ── Neural scale ─────────────────────────────────────────────────────
-        # neural_scale = sigmoid(log_scale) * max_scale
-        # Initialized small so copy dominates at the start.
-        # cfg.neural_init_scale = -3.0 → sigmoid(-3)*2 ≈ 0.095
+        # neural_scale = clamp(sigmoid(log_scale) * max_scale, max=scale_cap)
+        # scale_cap per dataset prevents neural from ever dominating copy.
+        # YAGO/WIKI (high recurrence) → cap=0.15 keeps copy primary.
+        # ICEWS18/GDELT (lower recurrence) → cap=1.0 allows neural to grow.
         self.log_neural_scale = nn.Parameter(
             torch.tensor(cfg.neural_init_scale))
-        self.max_neural_scale = 2.0  # upper bound: neural can contribute at most ×2
+        self.max_neural_scale = 2.0
+        self.neural_scale_cap = cfg.neural_scale_cap
 
     # ── Encode history ────────────────────────────────────────────────────────
 
@@ -142,6 +144,7 @@ class AURORACFModel(nn.Module):
 
         # 6. Additive combination — copy dominates, neural corrects
         scale = torch.sigmoid(self.log_neural_scale) * self.max_neural_scale
+        scale = scale.clamp(max=self.neural_scale_cap)
         logits = copy_logit + scale * neural_logit       # (B, N)
 
         return logits, query
