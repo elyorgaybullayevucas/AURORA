@@ -42,7 +42,10 @@ def interactive():
     epochs  = ask("Epochs (Enter = dataset default)", default="")
     bs      = ask("Batch size (Enter = dataset default)", default="")
 
-    cmd = [sys.executable, "train_cf.py",
+    model_type = ask("Model", choices=["adapt", "cf"], default="adapt")
+    script = "train_adapt.py" if model_type == "adapt" else "train_cf.py"
+
+    cmd = [sys.executable, script,
            "--dataset", dataset,
            "--gpu", gpu]
     if epochs:
