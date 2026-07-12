@@ -19,6 +19,8 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "recency_steps":     2,
         "recency_boost":     4.0,
         "use_entity_copy":   True,
+        "copy_only":         False,
+        "fixed_gate":        0.25,
         "epochs":            60,
         "batch_size":        1024,
         "lr":                2e-4,
@@ -29,7 +31,7 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "infonce_temp":      0.07,
         "label_smoothing":   0.1,
         "neural_init_scale": -3.0,
-        "neural_scale_cap":  1.0,   # ICEWS18: neural can grow more freely
+        "neural_scale_cap":  1.0,
     },
     "WIKI": {
         "embed_dim":         256,
@@ -41,17 +43,19 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "recency_steps":     5,
         "recency_boost":     10.0,
         "use_entity_copy":   True,
+        "copy_only":         True,
+        "fixed_gate":        1.0,
         "epochs":            50,
         "batch_size":        512,
-        "lr":                2e-4,
+        "lr":                1e-3,
         "warmup_ratio":      0.1,
         "weight_decay":      1e-4,
         "grad_clip":         1.0,
-        "alpha_infonce":     0.3,
+        "alpha_infonce":     0.0,
         "infonce_temp":      0.07,
         "label_smoothing":   0.05,
         "neural_init_scale": -3.0,
-        "neural_scale_cap":  0.15,  # WIKI: copy must stay dominant
+        "neural_scale_cap":  0.15,
     },
     "YAGO": {
         "embed_dim":         256,
@@ -59,21 +63,23 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "hist_len":          20,
         "gru_layers":        2,
         "dropout":           0.2,
-        "copy_lambda":       0.02,  # very slow decay for YAGO
+        "copy_lambda":       0.02,
         "recency_steps":     7,
         "recency_boost":     15.0,
         "use_entity_copy":   True,
+        "copy_only":         True,
+        "fixed_gate":        1.0,
         "epochs":            50,
         "batch_size":        512,
-        "lr":                2e-4,
+        "lr":                1e-3,
         "warmup_ratio":      0.1,
         "weight_decay":      1e-4,
         "grad_clip":         1.0,
-        "alpha_infonce":     0.3,
+        "alpha_infonce":     0.0,
         "infonce_temp":      0.07,
         "label_smoothing":   0.05,
         "neural_init_scale": -3.0,
-        "neural_scale_cap":  0.12,  # YAGO: copy is king, neural barely touches
+        "neural_scale_cap":  0.12,
     },
     "GDELT": {
         "embed_dim":         256,
@@ -85,6 +91,8 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "recency_steps":     2,
         "recency_boost":     4.0,
         "use_entity_copy":   True,
+        "copy_only":         False,
+        "fixed_gate":        0.20,
         "epochs":            40,
         "batch_size":        512,
         "lr":                2e-4,
@@ -114,6 +122,8 @@ class AURORACFConfig:
     recency_steps:     int   = 2
     recency_boost:     float = 4.0
     use_entity_copy:   bool  = True
+    copy_only:         bool  = False
+    fixed_gate:        float = 0.3
     neural_init_scale: float = -3.0
     neural_scale_cap:  float = 1.0
     epochs:            int   = 60
