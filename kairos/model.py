@@ -194,21 +194,37 @@ class Evolver(nn.Module):
 
 
 class ConvTransE(nn.Module):
+    """
+    ConvTransE with LayerNorm in place of the canonical BatchNorm.
+
+    BatchNorm is wrong for this training regime. Batches here are snapshots:
+    the batch is however many facts occurred at one timestamp, which varies
+    by more than an order of magnitude across timestamps (72 to 4650 on the
+    datasets used here). Batch statistics are correspondingly unstable, and
+    because long snapshots must be split into query chunks to fit in memory,
+    BatchNorm also makes the result depend on the chunk size: the statistics
+    are computed over whichever queries land in the same chunk. LayerNorm
+    normalises per sample, so snapshot size and chunking
+    change nothing. Whether BatchNorm would also cost accuracy here was not
+    measured; it is replaced because its output depends on how the snapshot
+    happens to be split, which makes the training objective ill-defined.
+    """
+
     def __init__(self, d, channels, kernel, dropout):
         super().__init__()
-        self.bn0 = nn.BatchNorm1d(2)
+        self.n0 = nn.LayerNorm(d)
         self.conv = nn.Conv1d(2, channels, kernel, padding=kernel // 2)
-        self.bn1 = nn.BatchNorm1d(channels)
+        self.n1 = nn.LayerNorm(d)
         self.fc = nn.Linear(channels * d, d)
-        self.bn2 = nn.BatchNorm1d(d)
+        self.n2 = nn.LayerNorm(d)
         self.d0 = nn.Dropout(dropout)
         self.d1 = nn.Dropout(dropout)
 
     def forward(self, h_s, h_r, table, bias):
         B = h_s.size(0)
-        x = self.d0(self.bn0(torch.stack([h_s, h_r], 1)))
-        x = self.d1(F.relu(self.bn1(self.conv(x))))
-        x = F.relu(self.bn2(self.fc(x.reshape(B, -1))))
+        x = self.d0(self.n0(torch.stack([h_s, h_r], 1)))
+        x = self.d1(F.relu(self.n1(self.conv(x))))
+        x = F.relu(self.n2(self.fc(x.reshape(B, -1))))
         return x @ table.T + bias
 
 

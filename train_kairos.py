@@ -283,26 +283,50 @@ def main():
         for raw in tqdm(dl, desc=f" ep{ep}", leave=False, dynamic_ncols=True):
             it = to_dev(raw, device)
             optim.zero_grad(set_to_none=True)
+
+            # Evolve once per timestamp, then cut the graph at E.
+            #
+            # Accumulating the per-chunk losses and calling backward once
+            # keeps every chunk's activations alive simultaneously, so
+            # chunking saved nothing during training -- WIKI reached 21.3 GB
+            # and died. Detaching E lets each chunk's graph be freed by its
+            # own backward, with dL/dE accumulating in E_d.grad; the evolver
+            # is then backpropagated once through that accumulated gradient.
+            # Mathematically identical, memory bounded by a single chunk.
             with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
                 E, aux = model.evolve(it["hist"])
-                n = it["subs"].numel()
-                loss = 0.0
-                nchunk = 0
-                for a in range(0, n, cfg.query_chunk):
-                    b = min(a + cfg.query_chunk, n)
-                    lg = model(E, it["subs"][a:b], it["rels"][a:b],
+            E_d = E.detach().requires_grad_(True)
+
+            n = it["subs"].numel()
+            tot_batch = 0.0
+            for a in range(0, n, cfg.query_chunk):
+                b = min(a + cfg.query_chunk, n)
+                with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
+                    lg = model(E_d, it["subs"][a:b], it["rels"][a:b],
                                it["sup_ids"][a:b], it["sup_feat"][a:b],
                                it["sup_mask"][a:b])
-                    loss = loss + F.cross_entropy(
-                        lg.float(), it["objs"][a:b],
-                        label_smoothing=cfg.label_smoothing)
-                    nchunk += 1
-                # stable-factor drift penalty (DiMNet's disentanglement loss)
-                loss = loss / max(nchunk, 1) + cfg.aux_weight * aux
-            loss.backward()
+                    lc = F.cross_entropy(lg.float(), it["objs"][a:b],
+                                         label_smoothing=cfg.label_smoothing)
+                # cross_entropy already averages inside the chunk, so each
+                # chunk carries its SIZE fraction, not 1/nchunk. Chunks are
+                # unequal (the last one is a remainder), and 1/nchunk
+                # over-weights it -- with 72 queries at chunk 16 the final
+                # 8 queries would get 0.2 of the gradient instead of 0.111.
+                w = (b - a) / n
+                (lc * w).backward()
+                tot_batch += lc.item() * w
+
+            # chain the accumulated dL/dE back through the evolver, and add
+            # the stable-factor drift penalty (DiMNet's disentanglement loss)
+            tail = (E * E_d.grad).sum()
+            if aux.requires_grad:
+                tail = tail + cfg.aux_weight * aux
+            if tail.requires_grad:
+                tail.backward()
+
             clip_grad_norm_(model.parameters(), cfg.grad_clip)
             optim.step()
-            tot_l += loss.item(); nb += 1
+            tot_l += tot_batch; nb += 1
 
         sched.step()
         el = time.time() - t0

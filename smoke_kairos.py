@@ -119,6 +119,54 @@ for kw in [{}, {"phase_off": True}, {"struct_off": True}, {"rec_off": True}]:
     assert torch.isfinite(lg).all(), f"autocast {tag}: non-finite logits"
 print("autocast forward/backward OK")
 
+# ── chunked-detached backward must equal a single full backward ─────────────
+# Training detaches E and backprops each query chunk separately so that only
+# one chunk of activations is alive at a time. That is only legitimate if the
+# gradients come out identical to one full-batch backward.
+# dropout must be off: chunks draw independent masks, which changes
+# gradients for reasons unrelated to the accumulation scheme under test
+cfg0 = KairosConfig(**{**vars(cfg), "dropout": 0.0})
+
+def grads(chunked, chunk):
+    torch.manual_seed(7)
+    m = KAIROS(NE, NR, cfg0)
+    sub, rel, obj = item["subs"], item["rels"], item["objs"]
+    si, sf, sm = item["sup_ids"], item["sup_feat"], item["sup_mask"]
+    n = sub.numel()
+    if not chunked:
+        E, aux = m.evolve(item["hist"])
+        lg = m(E, sub, rel, si, sf, sm)
+        (F.cross_entropy(lg.float(), obj) + 0.1 * aux).backward()
+    else:
+        E, aux = m.evolve(item["hist"])
+        Ed = E.detach().requires_grad_(True)
+        for a in range(0, n, chunk):
+            b = min(a + chunk, n)
+            lg = m(Ed, sub[a:b], rel[a:b], si[a:b], sf[a:b], sm[a:b])
+            lc = F.cross_entropy(lg.float(), obj[a:b])
+            (lc * (b - a) / n).backward()
+        ((E * Ed.grad).sum() + 0.1 * aux).backward()
+    return {k: v.grad.clone() for k, v in m.named_parameters()
+            if v.grad is not None}
+
+g_full = grads(False, None)
+g_chunk = grads(True, 16)
+# Scale by the GLOBAL gradient magnitude, not per-parameter. Some
+# parameters legitimately carry a near-zero gradient -- decoder.conv.bias
+# feeds straight into a LayerNorm, which is shift invariant, so its
+# gradient sits at ~1e-9 and any per-parameter relative error there is
+# floating-point noise, not a real disagreement.
+gmax = max(g_full[k].abs().max().item() for k in g_full)
+worst, worst_k = 0.0, ""
+for k in g_full:
+    d = (g_full[k] - g_chunk[k]).abs().max().item() / (gmax + 1e-12)
+    if d > worst:
+        worst, worst_k = d, k
+print(f"chunked vs full backward: max grad diff / global scale = "
+      f"{worst:.2e} ({worst_k})")
+assert worst < 1e-5, f"chunked backward changes gradients ({worst_k}: {worst:.2e})"
+print("chunked-detached backward OK")
+
 # ── tie-aware ranking ───────────────────────────────────────────────────────
 from train_kairos import ranks_of
 sc = torch.tensor([[5., 3., 3., 3., 1.],      # target 3.0: 1 better, 2 tied
