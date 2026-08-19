@@ -10,6 +10,11 @@ DATA_DIR = "./data"
 
 DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
     "ICEWS18": {
+        "hazard_dim":        96,
+        "max_support":       256,
+        "sem_cap":           0.8,
+        "sem_init":          -1.0,
+        "patience":          12,
         "embed_dim":         256,
         "k_neighbors":       32,
         "hist_len":          20,
@@ -34,6 +39,11 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  1.0,
     },
     "WIKI": {
+        "hazard_dim":        64,
+        "max_support":       128,
+        "sem_cap":           0.25,
+        "sem_init":          -2.5,
+        "patience":          10,
         "embed_dim":         256,
         "k_neighbors":       64,
         "hist_len":          20,
@@ -47,7 +57,7 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "fixed_gate":        1.0,
         "epochs":            50,
         "batch_size":        512,
-        "lr":                1e-3,
+        "lr":                5e-4,
         "warmup_ratio":      0.1,
         "weight_decay":      1e-4,
         "grad_clip":         1.0,
@@ -58,6 +68,11 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  0.15,
     },
     "YAGO": {
+        "hazard_dim":        64,
+        "max_support":       128,
+        "sem_cap":           0.25,
+        "sem_init":          -2.5,
+        "patience":          10,
         "embed_dim":         256,
         "k_neighbors":       64,
         "hist_len":          20,
@@ -71,7 +86,7 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "fixed_gate":        1.0,
         "epochs":            50,
         "batch_size":        512,
-        "lr":                1e-3,
+        "lr":                5e-4,
         "warmup_ratio":      0.1,
         "weight_decay":      1e-4,
         "grad_clip":         1.0,
@@ -82,6 +97,11 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  0.12,
     },
     "GDELT": {
+        "hazard_dim":        96,
+        "max_support":       256,
+        "sem_cap":           0.8,
+        "sem_init":          -1.0,
+        "patience":          10,
         "embed_dim":         256,
         "k_neighbors":       32,
         "hist_len":          15,
@@ -124,6 +144,12 @@ class AURORACFConfig:
     use_entity_copy:   bool  = True
     copy_only:         bool  = False
     fixed_gate:        float = 0.3
+    # ── NHC (Neural Hazard Copy) ──
+    hazard_dim:        int   = 64
+    max_support:       int   = 256
+    sem_init:          float = -2.0
+    sem_cap:           float = 0.5
+    patience:          int   = 10
     neural_init_scale: float = -3.0
     neural_scale_cap:  float = 1.0
     epochs:            int   = 60
@@ -163,6 +189,10 @@ def parse_args() -> AURORACFConfig:
     p.add_argument("--save_dir",   type=str,   default="checkpoints")
     p.add_argument("--log_dir",    type=str,   default="logs")
     p.add_argument("--eval_every", type=int,   default=1)
+    p.add_argument("--hazard_dim", type=int,   default=None)
+    p.add_argument("--max_support",type=int,   default=None)
+    p.add_argument("--sem_cap",    type=float, default=None)
+    p.add_argument("--patience",   type=int,   default=None)
 
     args = p.parse_args()
     ds = DATASET_CONFIGS[args.dataset].copy()
