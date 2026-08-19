@@ -10,6 +10,10 @@ DATA_DIR = "./data"
 
 DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
     "ICEWS18": {
+        "rel_topk":          64,
+        "n_heads":           4,
+        "conv_channels":     64,
+        "num_workers":       2,
         "hazard_dim":        96,
         "max_support":       256,
         "sem_cap":           0.8,
@@ -17,7 +21,7 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "patience":          12,
         "embed_dim":         256,
         "k_neighbors":       32,
-        "hist_len":          20,
+        "hist_len":          10,
         "gru_layers":        2,
         "dropout":           0.3,
         "copy_lambda":       0.5,
@@ -39,14 +43,18 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  1.0,
     },
     "WIKI": {
+        "rel_topk":          48,
+        "n_heads":           4,
+        "conv_channels":     64,
+        "num_workers":       2,
         "hazard_dim":        64,
         "max_support":       256,
         "sem_cap":           1.0,
         "sem_init":          -1.5,
         "patience":          12,
         "embed_dim":         256,
-        "k_neighbors":       64,
-        "hist_len":          20,
+        "k_neighbors":       32,
+        "hist_len":          10,
         "gru_layers":        2,
         "dropout":           0.2,
         "copy_lambda":       0.05,
@@ -68,14 +76,18 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  0.15,
     },
     "YAGO": {
+        "rel_topk":          48,
+        "n_heads":           4,
+        "conv_channels":     64,
+        "num_workers":       2,
         "hazard_dim":        64,
         "max_support":       256,
         "sem_cap":           1.0,
         "sem_init":          -1.5,
         "patience":          12,
         "embed_dim":         256,
-        "k_neighbors":       64,
-        "hist_len":          20,
+        "k_neighbors":       32,
+        "hist_len":          10,
         "gru_layers":        2,
         "dropout":           0.2,
         "copy_lambda":       0.02,
@@ -97,6 +109,10 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "neural_scale_cap":  0.12,
     },
     "GDELT": {
+        "rel_topk":          64,
+        "n_heads":           4,
+        "conv_channels":     64,
+        "num_workers":       2,
         "hazard_dim":        96,
         "max_support":       256,
         "sem_cap":           0.8,
@@ -104,7 +120,7 @@ DATASET_CONFIGS: Dict[str, Dict[str, Any]] = {
         "patience":          10,
         "embed_dim":         256,
         "k_neighbors":       32,
-        "hist_len":          15,
+        "hist_len":          8,
         "gru_layers":        2,
         "dropout":           0.3,
         "copy_lambda":       0.5,
@@ -150,6 +166,12 @@ class AURORACFConfig:
     sem_init:          float = -2.0
     sem_cap:           float = 0.5
     patience:          int   = 10
+    rel_topk:          int   = 32
+    n_heads:           int   = 4
+    conv_channels:     int   = 64
+    num_workers:       int   = 2
+    hazard_off:        bool  = False
+    phase_off:         bool  = False
     neural_init_scale: float = -3.0
     neural_scale_cap:  float = 1.0
     epochs:            int   = 60
@@ -193,6 +215,11 @@ def parse_args() -> AURORACFConfig:
     p.add_argument("--max_support",type=int,   default=None)
     p.add_argument("--sem_cap",    type=float, default=None)
     p.add_argument("--patience",   type=int,   default=None)
+    p.add_argument("--rel_topk",   type=int,   default=None)
+    p.add_argument("--n_heads",    type=int,   default=None)
+    p.add_argument("--num_workers",type=int,   default=None)
+    p.add_argument("--hazard_off", action="store_true")
+    p.add_argument("--phase_off",  action="store_true")
 
     args = p.parse_args()
     ds = DATASET_CONFIGS[args.dataset].copy()
