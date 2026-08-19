@@ -46,14 +46,30 @@ comparable and must not be mixed into a single table.
 | CEN | 42.17 | 32.10 | 47.59 | 61.43 |
 | **DiMNet (SOTA)** | **45.72** | **34.41** | **51.37** | **67.99** |
 
-## WIKI / YAGO
+## WIKI (from the DaeMon paper table)
 
-**Not yet verified.** The DiMNet table does not cover them. Numbers quoted
-earlier in this project (CENET ~79 H@1 on YAGO) have not been checked
-against a source, and WIKI/YAGO are exactly where protocol confusion is
-worst — published values differ by 30+ points depending on the setting.
-Do not put a WIKI/YAGO comparison in a paper until the source and protocol
-of each baseline number are confirmed.
+| Method | MRR | H@1 | H@3 | H@10 |
+|---|---|---|---|---|
+| CyGNet | 33.89 | 29.06 | 36.10 | 41.86 |
+| TANGO-DistMult | 51.15 | 49.66 | 52.16 | 53.35 |
+| xERTE | 71.14 | 68.05 | 76.11 | 79.01 |
+| TITer | 75.50 | 72.96 | 77.49 | 79.02 |
+| RE-GCN | 77.55 | 73.75 | 80.38 | 83.68 |
+| **DaeMon** | **82.38** | **78.26** | **86.03** | **88.01** |
+
+## YAGO (from the DaeMon paper table)
+
+| Method | MRR | H@1 | H@3 | H@10 |
+|---|---|---|---|---|
+| CyGNet | 52.07 | 45.36 | 56.12 | 63.77 |
+| RE-NET | 58.02 | 53.06 | 61.08 | 66.29 |
+| RE-GCN | 84.12 | 80.76 | 86.30 | 89.98 |
+| xERTE | 84.19 | 80.09 | 88.02 | 89.78 |
+| TITer | 87.47 | 84.89 | 89.96 | 90.27 |
+| **DaeMon** | **91.59** | **90.03** | **93.00** | **93.34** |
+
+Note the ceiling: DaeMon's YAGO H@10 is 93.34, not ~100. Any run of ours
+reporting H@10 near 100 on YAGO is measuring something wrong, not winning.
 
 ## Different protocol — do not mix
 
@@ -70,9 +86,24 @@ possible on its own terms.
 |---|---|---|---|---|---|
 | TREA | ICEWS18 | time-aware filtered | 31.5 | 21.8 | below DaeMon and DiMNet |
 | TREA | GDELT | time-aware filtered | 19.48 | 12.21 | below RE-GCN |
-| AURORA-v3 (copy-only) | YAGO | time-aware filtered | 88.82 | 83.13 | 41 parameters; baseline unverified |
-| NHC (prototype) | YAGO | time-aware filtered | 92.05 | 91.11 | degenerate support, avg\|S\|=1.3 |
+| AURORA-v3 (copy-only) | YAGO | time-aware filtered | 88.82 | 83.13 | **invalid** — optimistic ties |
+| NHC (prototype) | YAGO | time-aware filtered | 92.05 | 91.11 | **invalid** — optimistic ties |
 
-The two YAGO numbers are not yet meaningful as claims: the baseline they
-were compared against is unverified, and the NHC run had a broken candidate
-set. They are recorded here so they are not mistaken for results.
+Neither YAGO number is usable. Both were produced with a rank of
+`1 + #(strictly better)`, which places the target ahead of every entity that
+ties with it. A copy-style model gives thousands of entities the same score,
+so the target is credited with rank 1 for free. The signature is
+AURORA-v3's YAGO H@10 = 99.93 against DaeMon's 93.34.
+
+`ranks_of()` in train_kairos.py now resolves ties to their average position,
+`1 + #(better) + (#(tied) - 1)/2`. Every number produced before that fix has
+to be regenerated before it means anything.
+
+## What has to be beaten
+
+| Dataset | DaeMon MRR / H@1 | Current SOTA | Source |
+|---|---|---|---|
+| ICEWS18 | 31.85 / 22.67 | DiMNet 34.13 / 23.29 | DiMNet table |
+| GDELT | 20.73 / 13.65 | DiMNet 21.93 / 14.03 | DiMNet table |
+| WIKI | 82.38 / 78.26 | DaeMon (best listed) | DaeMon table |
+| YAGO | 91.59 / 90.03 | DaeMon (best listed) | DaeMon table |

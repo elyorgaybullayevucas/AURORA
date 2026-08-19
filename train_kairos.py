@@ -76,6 +76,24 @@ def to_dev(item, dev):
     )
 
 
+def ranks_of(scores, tgt):
+    """
+    Rank of the target with ties resolved to their AVERAGE position.
+
+        rank = 1 + #{strictly better} + (#{tied} - 1) / 2
+
+    Counting only strictly-better scores is optimistic and silently inflates
+    every metric whenever many entities share a score. A copy-style model
+    assigns the same score to every entity with no history, so its target
+    ties with thousands of entities and is reported at rank 1. That is how an
+    earlier copy-only run reached H@10 = 99.93 on YAGO while DaeMon, a much
+    stronger model, reports 93.34 -- the gap was tie handling, not quality.
+    """
+    better = (scores > tgt).sum(1)
+    tied = (scores == tgt).sum(1) - 1          # exclude the target itself
+    return 1.0 + better.float() + tied.clamp(min=0).float() / 2.0
+
+
 class Meters:
     """Accumulates MRR/Hits under several protocols and strata."""
 
@@ -87,7 +105,7 @@ class Meters:
         if name not in self.d:
             self.d[name] = [0.0, {k: 0.0 for k in self.k}, 0]
         s, h, n = self.d[name]
-        s += (1.0 / ranks.float()).sum().item()
+        s += (1.0 / ranks).sum().item()
         for k in self.k:
             h[k] += (ranks <= k).sum().item()
         self.d[name] = [s, h, n + ranks.numel()]
@@ -130,7 +148,7 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
             tgt = lg.gather(1, objs.view(-1, 1))
 
             # ── raw ──────────────────────────────────────────────────────────
-            M.add("raw", (lg > tgt).sum(1) + 1)
+            M.add("raw", ranks_of(lg, tgt))
 
             subs_c = it["subs"][a:b].cpu().numpy()
             rels_c = it["rels"][a:b].cpu().numpy()
@@ -151,7 +169,7 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
                      .to(device)),
                     torch.tensor(float("-inf"), device=device))
             lg_ta.scatter_(1, objs.view(-1, 1), tgt)
-            M.add("time_aware_filtered", (lg_ta > tgt).sum(1) + 1)
+            M.add("time_aware_filtered", ranks_of(lg_ta, tgt))
 
             # ── time-unaware filtered ────────────────────────────────────────
             rows, cols = [], []
@@ -170,14 +188,14 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
                      .to(device)),
                     torch.tensor(float("-inf"), device=device))
             lg_tu.scatter_(1, objs.view(-1, 1), tgt)
-            M.add("time_unaware_filtered", (lg_tu > tgt).sum(1) + 1)
+            M.add("time_unaware_filtered", ranks_of(lg_tu, tgt))
 
             # ── stratified by monotone-blockedness ───────────────────────────
             if stratify:
                 sf = it["sup_feat"][a:b]
                 sm = it["sup_mask"][a:b]
                 sid = it["sup_ids"][a:b]
-                ranks = (lg_ta > tgt).sum(1) + 1
+                ranks = ranks_of(lg_ta, tgt)
                 blocked = _blocked_mask(sf, sm, sid, objs)
                 if blocked.any():
                     M.add("blocked", ranks[blocked])

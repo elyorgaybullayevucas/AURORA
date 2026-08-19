@@ -98,5 +98,19 @@ for i in range(len(ob)):
     other = has.copy(); other[si[i].numpy() == int(ob[i])] = False
     ref.append(bool(((dt[other] <= dt[p]) & (cnt[other] >= cnt[p])).any()))
 assert mask.tolist() == ref, "blocked mask mismatch"
-print("blocked-mask matches reference ✓")
+print("blocked-mask matches reference OK")
+
+# ── tie-aware ranking ───────────────────────────────────────────────────────
+from train_kairos import ranks_of
+sc = torch.tensor([[5., 3., 3., 3., 1.],      # target 3.0: 1 better, 2 tied
+                   [9., 8., 7., 6., 5.],      # target 9.0: strict winner
+                   [0., 0., 0., 0., 0.]])     # all tied
+tg = torch.tensor([[3.], [9.], [0.]])
+r = ranks_of(sc, tg)
+expect = torch.tensor([1 + 1 + 2 / 2, 1.0, 1 + 0 + 4 / 2])
+assert torch.allclose(r, expect), (r, expect)
+opt = (sc > tg).sum(1) + 1
+print(f"tie-aware ranks {r.tolist()}  vs optimistic {opt.tolist()}")
+assert opt[2].item() == 1 and r[2].item() == 3.0,     "optimistic ranking must differ on the all-tied row"
+print("tie-aware ranking OK")
 print("\nALL SMOKE TESTS PASSED")
