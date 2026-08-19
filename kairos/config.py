@@ -62,6 +62,7 @@ class KairosConfig:
     patience: int = 10
     eval_every: int = 1
     query_chunk: int = 1024
+    eval_only: bool = False
     rec_off: bool = False
     struct_off: bool = False
     phase_off: bool = False
@@ -91,6 +92,7 @@ def parse_args(argv=None) -> KairosConfig:
     for k in ("lr", "dropout", "weight_decay", "label_smoothing",
               "warmup_ratio", "grad_clip", "rec_bias_init", "aux_weight"):
         p.add_argument(f"--{k}", type=float, default=None)
+    p.add_argument("--eval_only", action="store_true")
     p.add_argument("--rec_off", action="store_true")
     p.add_argument("--struct_off", action="store_true")
     p.add_argument("--phase_off", action="store_true")

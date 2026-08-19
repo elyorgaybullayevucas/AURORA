@@ -84,22 +84,26 @@ print(f"kernel sign changes={sc} (exp decay = 0), peak phase={ph[c.argmax()]:.2f
 assert sc >= 1
 
 # ── blocked-mask matches a direct reference ─────────────────────────────────
-from train_kairos import _blocked_mask
+from train_kairos import strata
 sf, sm, si, ob = (item["sup_feat"], item["sup_mask"], item["sup_ids"],
                   item["objs"])
-mask = _blocked_mask(sf, sm, si, ob)
+cat = strata(sf, sm, si, ob)
 ref = []
 for i in range(len(ob)):
     cnt = np.expm1(sf[i, :, 0].numpy()); dt = np.expm1(sf[i, :, 1].numpy())
     has = (sf[i, :, 7].numpy() > 0) & sm[i].numpy()
     pos = np.flatnonzero((si[i].numpy() == int(ob[i])) & has)
     if len(pos) == 0:
-        ref.append(False); continue
+        ref.append(0); continue          # no_history
     p = pos[0]
     other = has.copy(); other[si[i].numpy() == int(ob[i])] = False
-    ref.append(bool(((dt[other] <= dt[p]) & (cnt[other] >= cnt[p])).any()))
-assert mask.tolist() == ref, "blocked mask mismatch"
-print("blocked-mask matches reference OK")
+    dominated = bool(((dt[other] <= dt[p]) & (cnt[other] >= cnt[p])).any())
+    ref.append(1 if dominated else 2)    # blocked / clean
+assert cat.tolist() == ref, "strata mismatch"
+assert set(cat.tolist()) <= {0, 1, 2}
+print(f"strata match reference OK  "
+      f"(no_history={int((cat==0).sum())} blocked={int((cat==1).sum())} "
+      f"clean={int((cat==2).sum())})")
 
 # ── autocast dtype path ─────────────────────────────────────────────────────
 # Training runs under bf16 autocast while the embedding tables stay fp32.

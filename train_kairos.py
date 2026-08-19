@@ -192,23 +192,40 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
 
             # ── stratified by monotone-blockedness ───────────────────────────
             if stratify:
-                sf = it["sup_feat"][a:b]
-                sm = it["sup_mask"][a:b]
-                sid = it["sup_ids"][a:b]
                 ranks = ranks_of(lg_ta, tgt)
-                blocked = _blocked_mask(sf, sm, sid, objs)
-                if blocked.any():
-                    M.add("blocked", ranks[blocked])
-                if (~blocked).any():
-                    M.add("not_blocked", ranks[~blocked])
+                g = strata(it["sup_feat"][a:b], it["sup_mask"][a:b],
+                           it["sup_ids"][a:b], objs)
+                for code, nm in ((0, "no_history"), (1, "blocked"),
+                                 (2, "clean")):
+                    sel = g == code
+                    if sel.any():
+                        M.add(nm, ranks[sel])
+                rec = g > 0
+                if rec.any():
+                    M.add("recurrent", ranks[rec])
 
     return M.result()
 
 
-def _blocked_mask(sup_feat, sup_mask, sup_ids, objs):
+def strata(sup_feat, sup_mask, sup_ids, objs):
     """
-    True where a distractor dominates the answer on (dt, count), i.e. the
-    query cannot be ranked first by any f(count)*g(dt) with g non-increasing.
+    Partition queries into three disjoint groups.
+
+        0  no_history  the answer has no usable (s,r) history at all, so the
+                       recurrence branch has nothing to say and the
+                       structural branch must carry the query
+        1  blocked     the answer has history but a distractor dominates it
+                       on (dt, count): no f(count)*g(dt) with g non-increasing
+                       can rank the answer first
+        2  clean       the answer has history and dominates every distractor,
+                       so a monotone kernel suffices
+
+    An earlier version returned a single blocked/not-blocked flag, which put
+    no_history and clean into the same bucket. That made the comparison
+    meaningless: the not-blocked side then contained the hardest queries in
+    the dataset (no history) alongside the easiest, and duly scored lower
+    than the blocked side. blocked must be compared against clean, since
+    those two differ only in whether a monotone kernel can order them.
     """
     cnt = torch.expm1(sup_feat[..., 0])
     dt = torch.expm1(sup_feat[..., 1])
@@ -221,7 +238,12 @@ def _blocked_mask(sup_feat, sup_mask, sup_ids, objs):
     a_ct = torch.where(is_ans & has, cnt, torch.zeros_like(cnt)).max(1).values
 
     dom = has & ~is_ans & (dt <= a_dt.unsqueeze(1)) & (cnt >= a_ct.unsqueeze(1))
-    return dom.any(1) & ans_ok
+    blocked = dom.any(1) & ans_ok
+
+    out = torch.zeros(objs.numel(), dtype=torch.long, device=objs.device)
+    out[ans_ok & blocked] = 1
+    out[ans_ok & ~blocked] = 2
+    return out
 
 
 def main():
@@ -271,7 +293,11 @@ def main():
           f"\n{'═'*len(HDR)}\n")
     print(HDR); print(SEP)
 
-    for ep in range(1, cfg.epochs + 1):
+    epoch_range = [] if cfg.eval_only else range(1, cfg.epochs + 1)
+    if cfg.eval_only:
+        print("  [eval_only] skipping training, scoring the saved checkpoint")
+
+    for ep in epoch_range:
         model.train()
         t0 = time.time()
         dl = DataLoader(data.train_set, batch_size=1, shuffle=True,
@@ -370,7 +396,7 @@ def main():
     print(f"  {'protocol':<24} {'n':>9} {'MRR':>8} {'H@1':>8} "
           f"{'H@3':>8} {'H@10':>8}")
     order = ["raw", "time_aware_filtered", "time_unaware_filtered",
-             "blocked", "not_blocked"]
+             "recurrent", "blocked", "clean", "no_history"]
     for k in order:
         if k not in res:
             continue
@@ -379,8 +405,13 @@ def main():
               f"{v['Hits@1']*100:>8.2f} {v['Hits@3']*100:>8.2f} "
               f"{v['Hits@10']*100:>8.2f}")
     print(f"{'═'*74}")
-    print("  'blocked' = queries no f(count)·g(Δt) with g non-increasing can")
-    print("  rank first. The contribution predicts the gain concentrates here.")
+    print("  Strata are disjoint and partition the test set:")
+    print("    no_history  answer has no (s,r) history -> structural only")
+    print("    blocked     has history, dominated on (dt,count) -> no")
+    print("                f(count)*g(Dt) with g non-increasing ranks it first")
+    print("    clean       has history and dominates -> monotone kernel suffices")
+    print("  The claim is tested by blocked vs clean ACROSS variants:")
+    print("  --phase_off should lose far more on blocked than on clean.")
 
     if not cfg.rec_off:
         try:
