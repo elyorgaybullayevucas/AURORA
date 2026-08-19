@@ -134,7 +134,7 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
         it = to_dev(raw, device)
         with autocast("cuda", dtype=torch.bfloat16,
                       enabled=device.type == "cuda"):
-            E = model.evolve(it["hist"])
+            E, _ = model.evolve(it["hist"])
         n = it["subs"].numel()
         for a in range(0, n, cfg.query_chunk):
             b = min(a + cfg.query_chunk, n)
@@ -284,7 +284,7 @@ def main():
             it = to_dev(raw, device)
             optim.zero_grad(set_to_none=True)
             with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
-                E = model.evolve(it["hist"])
+                E, aux = model.evolve(it["hist"])
                 n = it["subs"].numel()
                 loss = 0.0
                 nchunk = 0
@@ -297,7 +297,8 @@ def main():
                         lg.float(), it["objs"][a:b],
                         label_smoothing=cfg.label_smoothing)
                     nchunk += 1
-                loss = loss / max(nchunk, 1)
+                # stable-factor drift penalty (DiMNet's disentanglement loss)
+                loss = loss / max(nchunk, 1) + cfg.aux_weight * aux
             loss.backward()
             clip_grad_norm_(model.parameters(), cfg.grad_clip)
             optim.step()

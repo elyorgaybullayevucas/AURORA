@@ -50,8 +50,9 @@ assert item["sup_feat"].shape[-1] == N_FEAT
 for kw in [{}, {"rec_off": True}, {"struct_off": True}, {"phase_off": True}]:
     c = KairosConfig(**{**vars(cfg), **kw})
     m = KAIROS(NE, NR, c)
-    E = m.evolve(item["hist"])
+    E, aux = m.evolve(item["hist"])
     assert E.shape == (NE, c.embed_dim) and torch.isfinite(E).all()
+    assert torch.isfinite(aux) and aux.item() >= 0, "aux loss invalid"
     lg = m(E, item["subs"], item["rels"], item["sup_ids"],
            item["sup_feat"], item["sup_mask"])
     assert lg.shape == (item["subs"].numel(), NE), lg.shape

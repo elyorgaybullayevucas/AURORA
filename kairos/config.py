@@ -5,9 +5,14 @@ from typing import Tuple, Dict, Any
 
 DATA_DIR = "./data"
 
+# Capacity follows the published settings for this benchmark family rather
+# than the size of the GPU: RE-GCN uses d=200, DiMNet d=128 with omega=3
+# layers and history 10 (5 on GDELT). These datasets are small enough that
+# a much larger d overfits -- an earlier d=512 run is not evidence otherwise,
+# it was never compared.
 _C = dict(
-    embed_dim=512, hazard_dim=128, gcn_layers=2, conv_channels=64,
-    dropout=0.2, rec_bias_init=-4.0,
+    embed_dim=200, hazard_dim=128, gcn_layers=3, conv_channels=64,
+    dropout=0.2, rec_bias_init=-4.0, aux_weight=0.1,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
     query_chunk=8192, num_workers=6, reserve_gb=0,
@@ -18,10 +23,10 @@ DATASETS: Dict[str, Dict[str, Any]] = {
                     epochs=60, dropout=0.15),
     "WIKI":    dict(_C, hist_len=10, max_support=256, rel_topk=48,
                     epochs=60, dropout=0.15),
-    "ICEWS18": dict(_C, hist_len=12, max_support=256, rel_topk=96,
+    "ICEWS18": dict(_C, hist_len=10, max_support=256, rel_topk=96,
                     epochs=60, dropout=0.25),
-    "GDELT":   dict(_C, hist_len=10, max_support=192, rel_topk=96,
-                    epochs=40, dropout=0.25, embed_dim=384, patience=8),
+    "GDELT":   dict(_C, hist_len=5, max_support=192, rel_topk=96,
+                    epochs=40, dropout=0.25, patience=8),
 }
 
 
@@ -29,12 +34,13 @@ DATASETS: Dict[str, Dict[str, Any]] = {
 class KairosConfig:
     dataset: str = "ICEWS18"
     data_dir: str = DATA_DIR
-    embed_dim: int = 512
+    embed_dim: int = 200
     hazard_dim: int = 128
-    gcn_layers: int = 2
+    gcn_layers: int = 3
     conv_channels: int = 64
     dropout: float = 0.2
     rec_bias_init: float = -4.0
+    aux_weight: float = 0.1
     hist_len: int = 12
     max_support: int = 256
     rel_topk: int = 96
@@ -74,7 +80,7 @@ def parse_args(argv=None) -> KairosConfig:
               "eval_every", "query_chunk", "num_workers", "reserve_gb"):
         p.add_argument(f"--{k}", type=int, default=None)
     for k in ("lr", "dropout", "weight_decay", "label_smoothing",
-              "warmup_ratio", "grad_clip", "rec_bias_init"):
+              "warmup_ratio", "grad_clip", "rec_bias_init", "aux_weight"):
         p.add_argument(f"--{k}", type=float, default=None)
     p.add_argument("--rec_off", action="store_true")
     p.add_argument("--struct_off", action="store_true")
