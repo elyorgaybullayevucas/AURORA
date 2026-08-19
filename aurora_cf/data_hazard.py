@@ -241,7 +241,17 @@ class HazardDataLoader:
               f"relations={self.num_relations}  train={len(train_q):,}  "
               f"valid={len(valid_q):,}  test={len(test_q):,}  step={self.step}")
 
-        self.index = HazardIndex(all_q, step=self.step)
+        # The index MUST contain inverse edges: the training set is augmented
+        # with (o, r+R, s, t) quadruples, and without inverse edges in the
+        # index every inverse query gets an EMPTY relation history — which
+        # silently halves the usable training signal.
+        if cfg.use_inverse:
+            inv = np.stack([all_q[:, 2], all_q[:, 1] + self.num_relations,
+                            all_q[:, 0], all_q[:, 3]], axis=1).astype(all_q.dtype)
+            index_q = np.concatenate([all_q, inv], axis=0)
+        else:
+            index_q = all_q
+        self.index = HazardIndex(index_q, step=self.step)
 
         self.train_set = HazardDataset(train_q, self.index, self.num_entities,
                                        cfg, use_inverse=cfg.use_inverse,
