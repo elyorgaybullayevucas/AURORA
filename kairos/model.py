@@ -96,15 +96,19 @@ class MultiSpanLayer(nn.Module):
 
     def forward(self, H, R, src, rel, dst, prev):
         msg = self.w_msg(H[src] + R[rel])
+        # Accumulators must follow msg's dtype, not H's. Under autocast the
+        # linear returns bf16 while the entity table stays fp32, and
+        # index_add_ requires both operands to match exactly.
+        dt, dev = msg.dtype, msg.device
+        n, d = H.size(0), msg.size(1)
 
-        mean = torch.zeros_like(H)
+        mean = torch.zeros(n, d, device=dev, dtype=dt)
         mean.index_add_(0, dst, msg)
-        deg = torch.zeros(H.size(0), 1, device=H.device, dtype=H.dtype)
-        deg.index_add_(0, dst, torch.ones(dst.numel(), 1, device=H.device,
-                                          dtype=H.dtype))
+        deg = torch.zeros(n, 1, device=dev, dtype=dt)
+        deg.index_add_(0, dst, torch.ones(dst.numel(), 1, device=dev, dtype=dt))
         mean = mean / deg.clamp(min=1.0)
 
-        mx = torch.full_like(H, -1e4)
+        mx = torch.full((n, d), -1e4, device=dev, dtype=dt)
         mx = mx.index_reduce(0, dst, msg, "amax", include_self=True)
         mx = torch.where(deg > 0, mx, torch.zeros_like(mx))
 
@@ -151,7 +155,9 @@ class Evolver(nn.Module):
         history: list of (src, rel, dst), oldest first.
         Returns (E, aux) where aux is the stable-factor drift penalty.
         """
-        active = torch.zeros_like(E0)
+        # `active` is created on first use so it picks up the autocast dtype
+        # of the layer output rather than the fp32 embedding table.
+        active = None
         stable = None
         prev_layers = [None] * len(self.layers)
         aux = E0.new_zeros(())
@@ -169,6 +175,8 @@ class Evolver(nn.Module):
             prev_layers = outs
 
             a, b = self.dis(H)
+            if active is None:
+                active = torch.zeros_like(a)
             active = self.cell(a, active)
             if stable is not None:
                 # the stable factor should not drift between adjacent steps

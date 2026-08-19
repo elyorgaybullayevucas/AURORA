@@ -101,6 +101,24 @@ for i in range(len(ob)):
 assert mask.tolist() == ref, "blocked mask mismatch"
 print("blocked-mask matches reference OK")
 
+# ── autocast dtype path ─────────────────────────────────────────────────────
+# Training runs under bf16 autocast while the embedding tables stay fp32.
+# Mixing those in index_add_/index_reduce/GRUCell raises at runtime, so the
+# whole forward must be exercised under autocast, not only in fp32.
+for kw in [{}, {"phase_off": True}, {"struct_off": True}, {"rec_off": True}]:
+    c = KairosConfig(**{**vars(cfg), **kw})
+    m = KAIROS(NE, NR, c)
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        E, aux = m.evolve(item["hist"])
+        lg = m(E, item["subs"], item["rels"], item["sup_ids"],
+               item["sup_feat"], item["sup_mask"])
+        loss = F.cross_entropy(lg.float(), item["objs"]) + 0.1 * aux
+    loss.backward()
+    tag = list(kw)[0] if kw else "full"
+    print(f"  autocast {tag:<12} loss={loss.item():.4f}  logits={lg.dtype}")
+    assert torch.isfinite(lg).all(), f"autocast {tag}: non-finite logits"
+print("autocast forward/backward OK")
+
 # ── tie-aware ranking ───────────────────────────────────────────────────────
 from train_kairos import ranks_of
 sc = torch.tensor([[5., 3., 3., 3., 1.],      # target 3.0: 1 better, 2 tied
