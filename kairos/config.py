@@ -12,10 +12,19 @@ DATA_DIR = "./data"
 # it was never compared.
 _C = dict(
     embed_dim=200, hazard_dim=128, gcn_layers=3, conv_channels=64,
-    dropout=0.2, rec_bias_init=-4.0, aux_weight=0.1,
+        # Both intensities must start at a comparable scale. The gradient that
+    # reaches the recurrence branch through logaddexp is sigmoid(f_rec -
+    # f_struct); at rec_bias=-4 that factor is ~0.007 and the branch is
+    # starved. The first YAGO epoch showed exactly this -- rec_bias moved
+    # from -4.000 to -3.991 in a whole epoch. -2 puts log lambda_rec near 0
+    # at initialisation, which is where the structural logits also start.
+    dropout=0.2, rec_bias_init=-2.0, aux_weight=0.1,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
-    query_chunk=8192, num_workers=6, reserve_gb=0,
+    # The recurrence trunk holds ~7 intermediates of shape
+    # (chunk, max_support, 2*hazard_dim). At chunk=8192, S=256, dh=128 that
+    # is ~7.5 GB and ICEWS18 died on it. 1024 keeps it under 1 GB.
+    query_chunk=1024, num_workers=6, reserve_gb=0,
 )
 
 DATASETS: Dict[str, Dict[str, Any]] = {
@@ -39,7 +48,7 @@ class KairosConfig:
     gcn_layers: int = 3
     conv_channels: int = 64
     dropout: float = 0.2
-    rec_bias_init: float = -4.0
+    rec_bias_init: float = -2.0
     aux_weight: float = 0.1
     hist_len: int = 12
     max_support: int = 256
@@ -52,7 +61,7 @@ class KairosConfig:
     warmup_ratio: float = 0.05
     patience: int = 10
     eval_every: int = 1
-    query_chunk: int = 8192
+    query_chunk: int = 1024
     rec_off: bool = False
     struct_off: bool = False
     phase_off: bool = False
