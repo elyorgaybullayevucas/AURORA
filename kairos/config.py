@@ -22,7 +22,7 @@ _C = dict(
     # The path state is (queries, num_nodes, path_dim), which is what forces
     # DaeMon to batch 32 across 4 GPUs. Off by default; --path turns it on
     # and drops query_chunk accordingly.
-    path_off=True, path_dim=64, path_layers=3,
+    path_off=True, path_dim=64, path_layers=3, path_mem_gb=6.0,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
     # The recurrence trunk holds ~7 intermediates of shape
@@ -58,6 +58,7 @@ class KairosConfig:
     path_off: bool = True
     path_dim: int = 64
     path_layers: int = 3
+    path_mem_gb: float = 6.0
     hist_len: int = 12
     max_support: int = 256
     rel_topk: int = 96
@@ -102,7 +103,7 @@ def parse_args(argv=None) -> KairosConfig:
         p.add_argument(f"--{k}", type=int, default=None)
     for k in ("lr", "dropout", "weight_decay", "label_smoothing",
               "warmup_ratio", "grad_clip", "rec_bias_init", "aux_weight",
-              "struct_aux"):
+              "struct_aux", "path_mem_gb"):
         p.add_argument(f"--{k}", type=float, default=None)
     p.add_argument("--eval_only", action="store_true")
     p.add_argument("--rec_off", action="store_true")
@@ -121,9 +122,9 @@ def parse_args(argv=None) -> KairosConfig:
             base[k] = v
     if a.path:
         base["path_off"] = False
-        # the path state is (chunk, N, path_dim); 1024 queries would be two
-        # orders of magnitude past what fits
-        base["query_chunk"] = min(base.get("query_chunk", 1024), 32)
+        # actual value is derived from num_entities in train_kairos.py once
+        # the dataset is known; this is only a safe ceiling
+        base["query_chunk"] = min(base.get("query_chunk", 1024), 256)
     base["dataset"], base["data_dir"] = a.dataset, a.data_dir
     fields = KairosConfig.__dataclass_fields__
     return KairosConfig(**{k: v for k, v in base.items() if k in fields})

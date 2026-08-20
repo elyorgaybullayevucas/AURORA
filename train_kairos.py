@@ -271,6 +271,25 @@ def main():
               f"{free/1024**3:.1f}/{tot/1024**3:.1f} GB free")
 
     data = KairosData(cfg)
+    # ── size the path chunk to the graph, not to a constant ──────────────
+    # The path state is (chunk, num_entities, path_dim) and is checkpointed
+    # once per snapshot, so the live footprint is
+    #     chunk * N * path_dim * 2 bytes * hist_len.
+    # A fixed chunk of 32 was set for the largest entity set and then applied
+    # everywhere. On YAGO that is 44 MB of a 35 GB card, and the run becomes
+    # kernel-launch bound: 57 chunks per timestamp x 30 propagations, giving
+    # 19 s per timestamp and 56 min per epoch. Same arithmetic, far fewer
+    # launches, when the chunk is chosen from the budget.
+    if not cfg.path_off:
+        budget = cfg.path_mem_gb * (1024 ** 3)
+        per_q = data.num_entities * cfg.path_dim * 2 * max(cfg.hist_len, 1)
+        auto = int(budget // max(per_q, 1))
+        auto = max(8, min(1024, auto))
+        print(f"[path] entities={data.num_entities:,} dim={cfg.path_dim} "
+              f"H={cfg.hist_len} -> query_chunk {cfg.query_chunk} -> {auto} "
+              f"(~{cfg.path_mem_gb} GB of state)")
+        cfg.query_chunk = auto
+
     model = KAIROS(data.num_entities, data.num_relations, cfg).to(device)
     print(f"[model] params="
           f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
