@@ -18,7 +18,7 @@ _C = dict(
     # starved. The first YAGO epoch showed exactly this -- rec_bias moved
     # from -4.000 to -3.991 in a whole epoch. -2 puts log lambda_rec near 0
     # at initialisation, which is where the structural logits also start.
-    dropout=0.2, rec_bias_init=-2.0, aux_weight=0.1,
+    dropout=0.2, rec_bias_init=-2.0, aux_weight=0.1, struct_aux=0.3,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
     # The recurrence trunk holds ~7 intermediates of shape
@@ -50,6 +50,7 @@ class KairosConfig:
     dropout: float = 0.2
     rec_bias_init: float = -2.0
     aux_weight: float = 0.1
+    struct_aux: float = 0.3
     hist_len: int = 12
     max_support: int = 256
     rel_topk: int = 96
@@ -91,7 +92,8 @@ def parse_args(argv=None) -> KairosConfig:
               "eval_every", "query_chunk", "num_workers", "reserve_gb"):
         p.add_argument(f"--{k}", type=int, default=None)
     for k in ("lr", "dropout", "weight_decay", "label_smoothing",
-              "warmup_ratio", "grad_clip", "rec_bias_init", "aux_weight"):
+              "warmup_ratio", "grad_clip", "rec_bias_init", "aux_weight",
+              "struct_aux"):
         p.add_argument(f"--{k}", type=float, default=None)
     p.add_argument("--eval_only", action="store_true")
     p.add_argument("--rec_off", action="store_true")

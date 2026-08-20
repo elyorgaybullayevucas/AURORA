@@ -356,10 +356,11 @@ class KAIROS(nn.Module):
 
     # ── forward ──────────────────────────────────────────────────────────────
 
-    def forward(self, E, subs, rels, sup_ids, sup_feat, sup_mask):
+    def forward(self, E, subs, rels, sup_ids, sup_feat, sup_mask,
+                return_parts=False):
         f_struct = self.structural(E, subs, rels)
         if self.rec_off:
-            return f_struct
+            return (f_struct, f_struct) if return_parts else f_struct
 
         f_rec = self.recurrence(rels, sup_ids, sup_feat)
         f_rec = f_rec.masked_fill(~sup_mask, -1e4)
@@ -367,7 +368,11 @@ class KAIROS(nn.Module):
         ids = sup_ids.clamp(0, self.N - 1)
         base = f_struct.gather(1, ids)
         merged = torch.where(sup_mask, torch.logaddexp(base, f_rec), base)
-        return f_struct.scatter(1, ids, merged)
+        out = f_struct.scatter(1, ids, merged)
+        # the structural scores are returned separately so they can be
+        # supervised on their own; see the deep-supervision note in
+        # train_kairos.py
+        return (out, f_struct) if return_parts else out
 
     # ── diagnostic: learned kernel shape ─────────────────────────────────────
 

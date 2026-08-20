@@ -329,11 +329,29 @@ def main():
             for a in range(0, n, cfg.query_chunk):
                 b = min(a + cfg.query_chunk, n)
                 with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
-                    lg = model(E_d, it["subs"][a:b], it["rels"][a:b],
-                               it["sup_ids"][a:b], it["sup_feat"][a:b],
-                               it["sup_mask"][a:b])
-                    lc = F.cross_entropy(lg.float(), it["objs"][a:b],
+                    lg, lg_struct = model(
+                        E_d, it["subs"][a:b], it["rels"][a:b],
+                        it["sup_ids"][a:b], it["sup_feat"][a:b],
+                        it["sup_mask"][a:b], return_parts=True)
+                    obj = it["objs"][a:b]
+                    lc = F.cross_entropy(lg.float(), obj,
                                          label_smoothing=cfg.label_smoothing)
+                    # Deep supervision on the structural branch.
+                    #
+                    # A single objective on the superposition lets the easy
+                    # branch absorb the signal. On YAGO, 92.8% of queries are
+                    # recurrent, recurrence explains the loss within an epoch
+                    # or two, and the structural branch never becomes useful:
+                    # it scores 0.79 H@1 on the queries where the answer has
+                    # no (s,r) history and recurrence is silent by
+                    # construction. Yet --rec_off reaches 46.46 MRR, so the
+                    # branch can learn when it has to. Scoring it against the
+                    # full label set on its own forces that, at the cost of
+                    # one extra cross-entropy and no new parameters.
+                    if cfg.struct_aux > 0 and not cfg.rec_off:
+                        lc = lc + cfg.struct_aux * F.cross_entropy(
+                            lg_struct.float(), obj,
+                            label_smoothing=cfg.label_smoothing)
                 # cross_entropy already averages inside the chunk, so each
                 # chunk carries its SIZE fraction, not 1/nchunk. Chunks are
                 # unequal (the last one is a remainder), and 1/nchunk
