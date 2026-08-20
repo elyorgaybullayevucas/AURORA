@@ -384,8 +384,32 @@ def main():
     print(f"\n★ best valid MRR (time-aware filtered) = {best:.4f} "
           f"(epoch {best_ep})")
     if os.path.exists(ck):
-        model.load_state_dict(torch.load(ck, map_location=device,
-                                         weights_only=True)["model"])
+        sd = torch.load(ck, map_location=device, weights_only=True)["model"]
+        # Load tolerantly and say exactly what did not match. The monotone
+        # baseline path (mono_trunk / mono_head) was reshaped after these
+        # checkpoints were written, and the full variant never touches it, so
+        # a strict load would refuse a checkpoint that is perfectly usable.
+        # Anything that fails to match on a path the variant DOES use is a
+        # real problem, which is why the skipped keys are printed rather than
+        # swallowed.
+        own = model.state_dict()
+        ok = {k: v for k, v in sd.items()
+              if k in own and own[k].shape == v.shape}
+        skipped = sorted(set(sd) - set(ok))
+        missing = sorted(set(own) - set(ok))
+        model.load_state_dict(ok, strict=False)
+        print(f"  loaded {len(ok)}/{len(own)} tensors from {ck}")
+        if skipped:
+            print(f"  checkpoint keys not applied: {skipped}")
+        if missing:
+            print(f"  left at initialisation:      {missing}")
+        used = [k for k in missing
+                if not k.startswith(("mono_trunk", "mono_head"))] \
+            if not cfg.phase_off else \
+            [k for k in missing if not k.startswith(("trunk", "w_head"))]
+        if used:
+            print(f"  WARNING: these are on the active path for this "
+                  f"variant, results are not meaningful: {used}")
 
     res = evaluate(model, data, "test", device, cfg, verbose=True,
                    stratify=True)
