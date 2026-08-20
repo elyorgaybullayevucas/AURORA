@@ -293,7 +293,8 @@ def main():
         print(f"[path] entities={data.num_entities:,} dim={cfg.path_dim} "
               f"H={cfg.hist_len} largest_snapshot={biggest:,} "
               f"-> query_chunk {cfg.query_chunk} -> {auto} "
-              f"({state_gb:.1f} GB of state, budget {cfg.path_mem_gb} GB)")
+              f"({state_gb:.1f} GB of state, budget {cfg.path_mem_gb} GB; "
+              f"peak is roughly 1.5x that during backward recomputation)")
         cfg.query_chunk = auto
 
     model = KAIROS(data.num_entities, data.num_relations, cfg).to(device)

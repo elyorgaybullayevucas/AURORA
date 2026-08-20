@@ -22,7 +22,7 @@ _C = dict(
     # The path state is (queries, num_nodes, path_dim), which is what forces
     # DaeMon to batch 32 across 4 GPUs. Off by default; --path turns it on
     # and drops query_chunk accordingly.
-    path_off=True, path_dim=64, path_layers=3, path_mem_gb=6.0,
+    path_off=True, path_dim=64, path_layers=3, path_mem_gb=8.0,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
     # The recurrence trunk holds ~7 intermediates of shape
@@ -58,7 +58,7 @@ class KairosConfig:
     path_off: bool = True
     path_dim: int = 64
     path_layers: int = 3
-    path_mem_gb: float = 6.0
+    path_mem_gb: float = 8.0
     hist_len: int = 12
     max_support: int = 256
     rel_topk: int = 96

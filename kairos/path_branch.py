@@ -53,7 +53,14 @@ class PathLayer(nn.Module):
         self.d = d
         self.R = num_relations
         self.rel_proj = nn.Linear(d, num_relations * d)
-        self.update = nn.Linear(d * 3, d)      # [input, mean, max]
+        # A Linear over a concatenation equals the sum of Linears over the
+        # parts:  W [h ; mean ; max] = W1 h + W2 mean + W3 max.
+        # Keeping it as three maps avoids ever materialising the (B, N, 3d)
+        # concatenation, which at chunk 1579 on YAGO is 6.1 GB and is exactly
+        # where the first run died inside the checkpoint recomputation.
+        self.u_h = nn.Linear(d, d)
+        self.u_mean = nn.Linear(d, d, bias=False)
+        self.u_max = nn.Linear(d, d, bias=False)
         self.norm = nn.LayerNorm(d)
         self.drop = nn.Dropout(dropout)
 
@@ -68,18 +75,22 @@ class PathLayer(nn.Module):
         r_e = rel_mat[:, rel]                                   # (B, E, d)
         msg = h[:, src] * r_e                                   # DistMult
 
-        mean = torch.zeros(B, N, d, device=h.device, dtype=msg.dtype)
-        mean.index_add_(1, dst, msg)
         deg = torch.zeros(N, 1, device=h.device, dtype=msg.dtype)
         deg.index_add_(0, dst, torch.ones(dst.numel(), 1, device=h.device,
                                           dtype=msg.dtype))
-        mean = mean / deg.clamp(min=1.0).unsqueeze(0)
+        deg = deg.clamp(min=1.0).unsqueeze(0)
+
+        acc = torch.zeros(B, N, d, device=h.device, dtype=msg.dtype)
+        acc.index_add_(1, dst, msg)
+        out = self.u_h(h) + self.u_mean(acc / deg)
+        del acc
 
         mx = torch.full((B, N, d), -1e4, device=h.device, dtype=msg.dtype)
         mx = mx.index_reduce(1, dst, msg, "amax", include_self=True)
-        mx = torch.where(deg.unsqueeze(0) > 0, mx, torch.zeros_like(mx))
+        mx = torch.where(deg > 0, mx, torch.zeros_like(mx))
+        out = out + self.u_max(mx)
+        del mx, msg
 
-        out = self.update(torch.cat([h, mean, mx], -1))
         return self.norm(self.drop(F.relu(out)) + seed)
 
 
