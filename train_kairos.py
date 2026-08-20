@@ -94,6 +94,44 @@ def ranks_of(scores, tgt):
     return 1.0 + better.float() + tied.clamp(min=0).float() / 2.0
 
 
+def _chunk(model, cfg, it, E_d, a, b, n, use_cuda):
+    """
+    One query chunk: forward, loss, backward. Returns (loss_value, weight).
+
+    Kept as a function so the caller can catch an OOM and retry the same
+    chunk at half the size without duplicating the body.
+    """
+    with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
+        lg, lg_struct = model(
+            E_d, it["subs"][a:b], it["rels"][a:b], it["sup_ids"][a:b],
+            it["sup_feat"][a:b], it["sup_mask"][a:b],
+            return_parts=True, history=it["hist"])
+        obj = it["objs"][a:b]
+        lc = F.cross_entropy(lg.float(), obj,
+                             label_smoothing=cfg.label_smoothing)
+        # Deep supervision on the structural branch.
+        #
+        # A single objective on the superposition lets the easy branch absorb
+        # the signal. On YAGO 92.8% of queries are recurrent, recurrence
+        # explains the loss within an epoch or two, and the structural branch
+        # never becomes useful: it scores 0.79 H@1 on the queries where the
+        # answer has no (s,r) history and recurrence is silent by
+        # construction. Yet --rec_off reaches 46.46 MRR, so the branch can
+        # learn when it has to. Scoring it against the full label set on its
+        # own forces that, for one extra cross-entropy and no new parameters.
+        if cfg.struct_aux > 0 and not cfg.rec_off:
+            lc = lc + cfg.struct_aux * F.cross_entropy(
+                lg_struct.float(), obj, label_smoothing=cfg.label_smoothing)
+
+    # cross_entropy already averages inside the chunk, so a chunk carries its
+    # SIZE fraction, not 1/nchunk. Chunks are unequal -- the last is a
+    # remainder, and a retry after OOM makes them unequal again -- and
+    # 1/nchunk would over-weight the short ones.
+    w = (b - a) / n
+    (lc * w).backward()
+    return lc.item(), w
+
+
 class Meters:
     """Accumulates MRR/Hits under several protocols and strata."""
 
@@ -271,30 +309,32 @@ def main():
               f"{free/1024**3:.1f}/{tot/1024**3:.1f} GB free")
 
     data = KairosData(cfg)
-    # ── size the path chunk to the graph, not to a constant ──────────────
-    # The path state is (chunk, num_entities, path_dim) and is checkpointed
-    # once per snapshot, so the live footprint is
-    #     chunk * N * path_dim * 2 bytes * hist_len.
-    # A fixed chunk of 32 was set for the largest entity set and then applied
-    # everywhere. On YAGO that is 44 MB of a 35 GB card, and the run becomes
-    # kernel-launch bound: 57 chunks per timestamp x 30 propagations, giving
-    # 19 s per timestamp and 56 min per epoch. Same arithmetic, far fewer
-    # launches, when the chunk is chosen from the budget.
+    # ── size the path chunk ───────────────────────────────────────────────
+    # Two earlier attempts got this wrong the same way: they counted only the
+    # checkpointed states, hist_len * chunk * N * path_dim * 2. Those are the
+    # smaller term. When a snapshot is recomputed for backward, that step's
+    # entire graph is rebuilt, and each layer retains on the order of a dozen
+    # (chunk, N, path_dim) intermediates. So
+    #
+    #     live ~ unit * (hist_len + 12 * path_layers),  unit = chunk*N*d*2
+    #
+    # On YAGO with hist_len 10 and 3 layers the coefficient is 46, not 10,
+    # which is why a "12 GB budget" was really requesting about 55 GB and
+    # died inside the recomputation both times.
     if not cfg.path_off:
-        budget = cfg.path_mem_gb * (1024 ** 3)
-        per_q = data.num_entities * cfg.path_dim * 2 * max(cfg.hist_len, 1)
-        auto = int(budget // max(per_q, 1))
-        # Cap by the largest snapshot too: past one chunk per timestamp
-        # there is nothing left to merge, so a bigger budget buys nothing.
+        unit = data.num_entities * cfg.path_dim * 2
+        coeff = max(cfg.hist_len, 1) + 12 * cfg.path_layers
+        auto = int(cfg.path_mem_gb * (1024 ** 3) // max(unit * coeff, 1))
+        # past one chunk per timestamp a larger budget buys nothing
         biggest = max(int(e - a) for a, e in
                       zip(data.train_set.starts, data.train_set.ends))
         auto = max(8, min(4096, auto, biggest))
-        state_gb = auto * per_q / (1024 ** 3)
         print(f"[path] entities={data.num_entities:,} dim={cfg.path_dim} "
-              f"H={cfg.hist_len} largest_snapshot={biggest:,} "
-              f"-> query_chunk {cfg.query_chunk} -> {auto} "
-              f"({state_gb:.1f} GB of state, budget {cfg.path_mem_gb} GB; "
-              f"peak is roughly 1.5x that during backward recomputation)")
+              f"H={cfg.hist_len} layers={cfg.path_layers} coeff={coeff} "
+              f"largest_snapshot={biggest:,} -> query_chunk "
+              f"{cfg.query_chunk} -> {auto} "
+              f"(~{auto * unit * coeff / 1024 ** 3:.1f} GB live, "
+              f"budget {cfg.path_mem_gb} GB)")
         cfg.query_chunk = auto
 
     model = KAIROS(data.num_entities, data.num_relations, cfg).to(device)
@@ -360,41 +400,25 @@ def main():
 
             n = it["subs"].numel()
             tot_batch = 0.0
-            for a in range(0, n, cfg.query_chunk):
+            a = 0
+            while a < n:
                 b = min(a + cfg.query_chunk, n)
-                with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
-                    lg, lg_struct = model(
-                        E_d, it["subs"][a:b], it["rels"][a:b],
-                        it["sup_ids"][a:b], it["sup_feat"][a:b],
-                        it["sup_mask"][a:b], return_parts=True,
-                        history=it["hist"])
-                    obj = it["objs"][a:b]
-                    lc = F.cross_entropy(lg.float(), obj,
-                                         label_smoothing=cfg.label_smoothing)
-                    # Deep supervision on the structural branch.
-                    #
-                    # A single objective on the superposition lets the easy
-                    # branch absorb the signal. On YAGO, 92.8% of queries are
-                    # recurrent, recurrence explains the loss within an epoch
-                    # or two, and the structural branch never becomes useful:
-                    # it scores 0.79 H@1 on the queries where the answer has
-                    # no (s,r) history and recurrence is silent by
-                    # construction. Yet --rec_off reaches 46.46 MRR, so the
-                    # branch can learn when it has to. Scoring it against the
-                    # full label set on its own forces that, at the cost of
-                    # one extra cross-entropy and no new parameters.
-                    if cfg.struct_aux > 0 and not cfg.rec_off:
-                        lc = lc + cfg.struct_aux * F.cross_entropy(
-                            lg_struct.float(), obj,
-                            label_smoothing=cfg.label_smoothing)
-                # cross_entropy already averages inside the chunk, so each
-                # chunk carries its SIZE fraction, not 1/nchunk. Chunks are
-                # unequal (the last one is a remainder), and 1/nchunk
-                # over-weights it -- with 72 queries at chunk 16 the final
-                # 8 queries would get 0.2 of the gradient instead of 0.111.
-                w = (b - a) / n
-                (lc * w).backward()
-                tot_batch += lc.item() * w
+                try:
+                    lc, w = _chunk(model, cfg, it, E_d, a, b, n, use_cuda)
+                except torch.cuda.OutOfMemoryError:
+                    # Halve and retry instead of losing the run to a bad
+                    # memory estimate. Chunking changes memory, not results,
+                    # and the size fraction below keeps the objective exact
+                    # whatever the chunk boundaries end up being.
+                    if cfg.query_chunk <= 8:
+                        raise
+                    torch.cuda.empty_cache()
+                    cfg.query_chunk = max(8, cfg.query_chunk // 2)
+                    print(f"\n[path] OOM at chunk {b - a} -> retrying with "
+                          f"query_chunk {cfg.query_chunk}", flush=True)
+                    continue
+                tot_batch += lc * w
+                a = b
 
             # chain the accumulated dL/dE back through the evolver, and add
             # the stable-factor drift penalty (DiMNet's disentanglement loss)
