@@ -142,7 +142,7 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
                           enabled=device.type == "cuda"):
                 lg = model(E, it["subs"][a:b], it["rels"][a:b],
                            it["sup_ids"][a:b], it["sup_feat"][a:b],
-                           it["sup_mask"][a:b])
+                           it["sup_mask"][a:b], history=it["hist"])
             lg = lg.float()
             objs = it["objs"][a:b]
             tgt = lg.gather(1, objs.view(-1, 1))
@@ -251,7 +251,8 @@ def main():
     variant = ("structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
                "monotone-kernel" if cfg.phase_off else
-               "no-phase-feature" if cfg.phase_feat_off else "full")
+               "no-phase-feature" if cfg.phase_feat_off else
+               "full+path" if not cfg.path_off else "full")
     print(BANNER)
     print(f"  dataset={cfg.dataset}  variant={variant}  d={cfg.embed_dim}  "
           f"gcn_layers={cfg.gcn_layers}  H={cfg.hist_len}  S={cfg.max_support}")
@@ -339,7 +340,8 @@ def main():
                     lg, lg_struct = model(
                         E_d, it["subs"][a:b], it["rels"][a:b],
                         it["sup_ids"][a:b], it["sup_feat"][a:b],
-                        it["sup_mask"][a:b], return_parts=True)
+                        it["sup_mask"][a:b], return_parts=True,
+                        history=it["hist"])
                     obj = it["objs"][a:b]
                     lc = F.cross_entropy(lg.float(), obj,
                                          label_smoothing=cfg.label_smoothing)

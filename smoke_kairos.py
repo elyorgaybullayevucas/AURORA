@@ -125,6 +125,33 @@ for kw in [{}, {"phase_off": True}, {"struct_off": True}, {"rec_off": True}]:
     assert torch.isfinite(lg).all(), f"autocast {tag}: non-finite logits"
 print("autocast forward/backward OK")
 
+# ── path branch ─────────────────────────────────────────────────────────────
+cp = KairosConfig(**{**vars(cfg), "path_off": False, "path_dim": 16,
+                     "path_layers": 2, "dropout": 0.0})
+mp = KAIROS(NE, NR, cp)
+Ep, _ = mp.evolve(item["hist"])
+sl = slice(0, 8)
+lgp = mp(Ep, item["subs"][sl], item["rels"][sl], item["sup_ids"][sl],
+         item["sup_feat"][sl], item["sup_mask"][sl], history=item["hist"])
+assert lgp.shape == (8, NE) and torch.isfinite(lgp).all()
+F.cross_entropy(lgp.float(), item["objs"][sl]).backward()
+pg = sum(p.grad.abs().sum().item() for p in mp.path.parameters()
+         if p.grad is not None)
+assert pg > 0, "path branch receives no gradient"
+# the whole point: it must not depend on entity identity
+pnames = [n for n, _ in mp.path.named_parameters()]
+assert not any("ent" in n for n in pnames), pnames
+# and it must only ever raise a score (superposition)
+mp.eval()
+with torch.no_grad():
+    hi = mp(Ep, item["subs"][sl], item["rels"][sl], item["sup_ids"][sl],
+            item["sup_feat"][sl], item["sup_mask"][sl], history=item["hist"])
+    mp.path.bias.fill_(-30.0)
+    lo = mp(Ep, item["subs"][sl], item["rels"][sl], item["sup_ids"][sl],
+            item["sup_feat"][sl], item["sup_mask"][sl], history=item["hist"])
+assert (hi >= lo - 1e-3).all(), "path branch lowered a score"
+print(f"path branch OK  grad={pg:.3f}  no entity table  superposition monotone")
+
 # ── chunked-detached backward must equal a single full backward ─────────────
 # Training detaches E and backprops each query chunk separately so that only
 # one chunk of activations is alive at a time. That is only legitimate if the

@@ -69,6 +69,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from kairos.data import N_FEAT
+from kairos.path_branch import PathBranch
 
 
 # ── structural backbone ──────────────────────────────────────────────────────
@@ -247,6 +248,7 @@ class KAIROS(nn.Module):
         # trunk and every other feature and only blanks the three phase
         # entries, so the difference against `full` is attributable to phase.
         self.phase_feat_off = getattr(cfg, "phase_feat_off", False)
+        self.path_off = getattr(cfg, "path_off", True)
 
         self.ent_emb = nn.Embedding(num_entities, d)
         self.rel_emb = nn.Embedding(R2, d)
@@ -256,6 +258,10 @@ class KAIROS(nn.Module):
 
         self.evolver = Evolver(d, cfg.gcn_layers, cfg.dropout)
         self.decoder = ConvTransE(d, cfg.conv_channels, 3, cfg.dropout)
+
+        # ── path branch: the third intensity, no entity embeddings ───────────
+        self.path = None if self.path_off else PathBranch(
+            cfg.path_dim, cfg.path_layers, R2, cfg.dropout)
 
         # ── recurrence kernel: the contribution ──────────────────────────────
         centres = torch.tensor([0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5,
@@ -357,8 +363,14 @@ class KAIROS(nn.Module):
     # ── forward ──────────────────────────────────────────────────────────────
 
     def forward(self, E, subs, rels, sup_ids, sup_feat, sup_mask,
-                return_parts=False):
+                return_parts=False, history=None):
         f_struct = self.structural(E, subs, rels)
+
+        # superpose the path intensity over every entity, before recurrence
+        if self.path is not None and history is not None:
+            f_path = self.path(subs, rels, history, self.N)
+            f_struct = torch.logaddexp(f_struct, f_path)
+
         if self.rec_off:
             return (f_struct, f_struct) if return_parts else f_struct
 

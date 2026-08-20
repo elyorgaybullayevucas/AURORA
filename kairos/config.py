@@ -19,6 +19,10 @@ _C = dict(
     # from -4.000 to -3.991 in a whole epoch. -2 puts log lambda_rec near 0
     # at initialisation, which is where the structural logits also start.
     dropout=0.2, rec_bias_init=-2.0, aux_weight=0.1, struct_aux=0.3,
+    # The path state is (queries, num_nodes, path_dim), which is what forces
+    # DaeMon to batch 32 across 4 GPUs. Off by default; --path turns it on
+    # and drops query_chunk accordingly.
+    path_off=True, path_dim=64, path_layers=3,
     lr=1e-3, weight_decay=1e-5, grad_clip=1.0, label_smoothing=0.1,
     warmup_ratio=0.05, eval_every=1, patience=10,
     # The recurrence trunk holds ~7 intermediates of shape
@@ -51,6 +55,9 @@ class KairosConfig:
     rec_bias_init: float = -2.0
     aux_weight: float = 0.1
     struct_aux: float = 0.3
+    path_off: bool = True
+    path_dim: int = 64
+    path_layers: int = 3
     hist_len: int = 12
     max_support: int = 256
     rel_topk: int = 96
@@ -102,12 +109,21 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--struct_off", action="store_true")
     p.add_argument("--phase_off", action="store_true")
     p.add_argument("--phase_feat_off", action="store_true")
+    p.add_argument("--path", action="store_true",
+                   help="enable the path branch (much slower)")
+    p.add_argument("--path_dim", type=int, default=None)
+    p.add_argument("--path_layers", type=int, default=None)
 
     a = p.parse_args(argv)
     base = dict(DATASETS[a.dataset])
     for k, v in vars(a).items():
         if v is not None and v != "" and not (isinstance(v, bool) and v is False):
             base[k] = v
+    if a.path:
+        base["path_off"] = False
+        # the path state is (chunk, N, path_dim); 1024 queries would be two
+        # orders of magnitude past what fits
+        base["query_chunk"] = min(base.get("query_chunk", 1024), 32)
     base["dataset"], base["data_dir"] = a.dataset, a.data_dir
     fields = KairosConfig.__dataclass_fields__
     return KairosConfig(**{k: v for k, v in base.items() if k in fields})
