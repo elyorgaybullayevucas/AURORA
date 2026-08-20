@@ -250,7 +250,8 @@ def main():
     cfg = parse_args()
     variant = ("structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
-               "monotone-kernel" if cfg.phase_off else "full")
+               "monotone-kernel" if cfg.phase_off else
+               "no-phase-feature" if cfg.phase_feat_off else "full")
     print(BANNER)
     print(f"  dataset={cfg.dataset}  variant={variant}  d={cfg.embed_dim}  "
           f"gcn_layers={cfg.gcn_layers}  H={cfg.hist_len}  S={cfg.max_support}")

@@ -240,6 +240,13 @@ class KAIROS(nn.Module):
         self.rec_off = cfg.rec_off
         self.struct_off = cfg.struct_off
         self.phase_off = cfg.phase_off
+        # Isolates the phase SIGNAL from feature richness. --phase_off swaps
+        # the whole branch for the published monotone form, which changes two
+        # things at once: it removes the non-monotone basis AND cuts the
+        # branch down from 16 features to (count, dt). This variant keeps the
+        # trunk and every other feature and only blanks the three phase
+        # entries, so the difference against `full` is attributable to phase.
+        self.phase_feat_off = getattr(cfg, "phase_feat_off", False)
 
         self.ent_emb = nn.Embedding(num_entities, d)
         self.rel_emb = nn.Embedding(R2, d)
@@ -324,8 +331,20 @@ class KAIROS(nn.Module):
                     + F.softplus(p_raw) * cnt
                     - F.softplus(b_raw) * dt) + self.rec_bias
 
-        x = torch.cat([self.feat_norm(sup_feat), h_r, h_o], -1)
+        feat = sup_feat
+        if self.phase_feat_off:
+            feat = feat.clone()
+            feat[..., 5] = 0.0        # phase (s,r,o)
+            feat[..., 11] = 0.0       # phase (s,.,o)
+            feat[..., 15] = 0.0       # phase (r,.,o)
+
+        x = torch.cat([self.feat_norm(feat), h_r, h_o], -1)
         z = self.trunk(x)
+
+        if self.phase_feat_off:
+            # same trunk, same features minus phase, scalar readout
+            return self.mono_head(z)[..., 0] + self.rec_bias
+
         w = F.softplus(self.w_head(z)).view(B, S, self.n_ctx, self.n_basis)
         p = torch.stack([sup_feat[..., 5], sup_feat[..., 11],
                          sup_feat[..., 15]], 2)

@@ -66,6 +66,7 @@ class KairosConfig:
     rec_off: bool = False
     struct_off: bool = False
     phase_off: bool = False
+    phase_feat_off: bool = False
     num_workers: int = 6
     reserve_gb: int = 0
     hits_at: Tuple = (1, 3, 10)
@@ -96,6 +97,7 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--rec_off", action="store_true")
     p.add_argument("--struct_off", action="store_true")
     p.add_argument("--phase_off", action="store_true")
+    p.add_argument("--phase_feat_off", action="store_true")
 
     a = p.parse_args(argv)
     base = dict(DATASETS[a.dataset])
