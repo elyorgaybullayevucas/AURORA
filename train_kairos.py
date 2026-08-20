@@ -284,10 +284,16 @@ def main():
         budget = cfg.path_mem_gb * (1024 ** 3)
         per_q = data.num_entities * cfg.path_dim * 2 * max(cfg.hist_len, 1)
         auto = int(budget // max(per_q, 1))
-        auto = max(8, min(1024, auto))
+        # Cap by the largest snapshot too: past one chunk per timestamp
+        # there is nothing left to merge, so a bigger budget buys nothing.
+        biggest = max(int(e - a) for a, e in
+                      zip(data.train_set.starts, data.train_set.ends))
+        auto = max(8, min(4096, auto, biggest))
+        state_gb = auto * per_q / (1024 ** 3)
         print(f"[path] entities={data.num_entities:,} dim={cfg.path_dim} "
-              f"H={cfg.hist_len} -> query_chunk {cfg.query_chunk} -> {auto} "
-              f"(~{cfg.path_mem_gb} GB of state)")
+              f"H={cfg.hist_len} largest_snapshot={biggest:,} "
+              f"-> query_chunk {cfg.query_chunk} -> {auto} "
+              f"({state_gb:.1f} GB of state, budget {cfg.path_mem_gb} GB)")
         cfg.query_chunk = auto
 
     model = KAIROS(data.num_entities, data.num_relations, cfg).to(device)
