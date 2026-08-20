@@ -285,7 +285,14 @@ def main():
 
     os.makedirs(cfg.save_dir, exist_ok=True)
     os.makedirs(cfg.log_dir, exist_ok=True)
+    # A run tag keeps configurations from overwriting each other. Without it
+    # any rerun with different hyper-parameters silently replaces the
+    # checkpoint and results json of the previous one under the same variant
+    # name -- which would have destroyed the runs that beat SOTA the moment
+    # struct_aux changed the objective.
     name = f"{cfg.dataset}_kairos_{variant}"
+    if cfg.tag:
+        name += f"_{cfg.tag}"
     ck = os.path.join(cfg.save_dir, f"{name}_best.pt")
     log_path = os.path.join(cfg.log_dir, f"{name}.jsonl")
     best, best_ep, bad = 0.0, 0, 0

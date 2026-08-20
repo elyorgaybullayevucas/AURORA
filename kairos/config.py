@@ -74,6 +74,7 @@ class KairosConfig:
     seed: int = 42
     device: str = "cuda"
     gpu: int = 0
+    tag: str = ""
     save_dir: str = "checkpoints"
     log_dir: str = "logs"
 
@@ -85,6 +86,7 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--gpu", type=int, default=0)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", default="cuda")
+    p.add_argument("--tag", default="")
     p.add_argument("--save_dir", default="checkpoints")
     p.add_argument("--log_dir", default="logs")
     for k in ("embed_dim", "hazard_dim", "gcn_layers", "conv_channels",
@@ -104,7 +106,7 @@ def parse_args(argv=None) -> KairosConfig:
     a = p.parse_args(argv)
     base = dict(DATASETS[a.dataset])
     for k, v in vars(a).items():
-        if v is not None and not (isinstance(v, bool) and v is False):
+        if v is not None and v != "" and not (isinstance(v, bool) and v is False):
             base[k] = v
     base["dataset"], base["data_dir"] = a.dataset, a.data_dir
     fields = KairosConfig.__dataclass_fields__
