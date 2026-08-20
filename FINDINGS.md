@@ -75,3 +75,56 @@ to the structural branch. The claim under test is that handling those
 queries in the recurrence branch directly — where the temporal evidence
 actually lives — is better than delegating them. The stratified evaluation
 in `train_kairos.py` (`blocked` vs `not_blocked` rows) is what tests it.
+
+---
+
+# KAIROS results (time-aware filtered, ×100)
+
+All four datasets exceed the published SOTA. Tie-aware ranking, one protocol,
+baselines taken from a single consistent source (see TARGETS.md).
+
+| Dataset | KAIROS MRR / H@1 | SOTA | Δ MRR | Δ H@1 |
+|---|---|---|---|---|
+| YAGO | 91.66 / 90.38 | DaeMon 91.59 / 90.03 | +0.07 | +0.35 |
+| WIKI | 82.97 / 79.88 | DaeMon 82.38 / 78.26 | +0.59 | +1.62 |
+| ICEWS18 | 34.45 / 24.78 | DiMNet 34.13 / 23.29 | +0.32 | +1.49 |
+| GDELT | 26.34 / 17.59 | DiMNet 21.93 / 14.03 | +4.41 | +3.56 |
+
+YAGO and ICEWS18 are narrow enough that a single seed does not settle them.
+Seed repeats are required before any of these are stated as a result.
+
+## Where the errors are (H@1 by stratum)
+
+| Dataset | blocked | clean | no_history | blocked share | no_history share |
+|---|---|---|---|---|---|
+| YAGO | 95.00 | 99.56 | 0.79 | 43.7 % | 7.3 % |
+| WIKI | 89.41 | 94.83 | 1.22 | 48.6 % | 13.2 % |
+| ICEWS18 | **14.26** | 77.70 | 5.65 | 26.6 % | 50.1 % |
+| GDELT | **5.07** | 69.52 | 1.63 | 38.1 % | 40.4 % |
+
+Two facts dominate everything else here.
+
+**1. On the event datasets the blocked stratum is a catastrophe.**
+ICEWS18: clean 77.70 against blocked 14.26 — a 63-point gap over a stratum
+holding a quarter of the test set. GDELT: clean 69.52 against blocked 5.07,
+a 64-point gap over 38 % of the test set. On YAGO and WIKI the same gap is
+4.6 and 5.4 points.
+
+The blocked stratum is defined without reference to any model: it is the set
+of queries where a distractor dominates the answer on both recency and
+count. That is precisely the set the phase kernel is supposed to reach. The
+model as it stands does not reach it on ICEWS18 or GDELT. Whether the phase
+basis moves it is exactly what the corrected --phase_off ablation measures;
+the earlier ablation could not answer this because it was not a restriction.
+
+**2. no_history is the largest single pool of failures on the event data.**
+ICEWS18: 50.1 % of queries, H@1 5.65. GDELT: 40.4 %, H@1 1.63. These are
+queries where the answer has never appeared for this (s, r) pair, so the
+recurrence branch is silent by construction and the structural branch is
+alone. It is not doing well. This is a backbone problem, entirely separate
+from the recurrence claim, and it is where the remaining headroom on the
+event datasets sits.
+
+Arithmetic check, GDELT: (232341·5.07 + 131718·69.52 + 246423·1.63)/610482
+= 17.59, matching the reported H@1. The reported number is carried almost
+entirely by the clean stratum, which is only 21.6 % of the queries.
