@@ -60,7 +60,9 @@ for kw in [{}, {"rec_off": True}, {"struct_off": True}, {"phase_off": True}]:
     F.cross_entropy(lg, item["objs"]).backward()
     ev = sum(p.grad.abs().sum().item() for p in m.evolver.parameters()
              if p.grad is not None)
-    tr = sum(p.grad.abs().sum().item() for p in m.trunk.parameters()
+    # phase_off routes through mono_trunk, the full model through trunk
+    rec_mod = m.mono_trunk if c.phase_off else m.trunk
+    tr = sum(p.grad.abs().sum().item() for p in rec_mod.parameters()
              if p.grad is not None)
     tag = list(kw)[0] if kw else "full"
     print(f"  {tag:<12} evolver_grad={ev:10.3f}  trunk_grad={tr:10.3f}")
@@ -170,6 +172,51 @@ print(f"chunked vs full backward: max grad diff / global scale = "
       f"{worst:.2e} ({worst_k})")
 assert worst < 1e-5, f"chunked backward changes gradients ({worst_k}: {worst:.2e})"
 print("chunked-detached backward OK")
+
+# ── --phase_off must be genuinely monotone in dt ────────────────────────────
+# The ablation only means something if the variant it produces really is
+# confined to the published family. Sweep dt with everything else fixed and
+# require the score to never increase, and to never decrease in count.
+cmono = KairosConfig(**{**vars(cfg), "phase_off": True, "dropout": 0.0})
+mm = KAIROS(NE, NR, cmono); mm.eval()
+for p_ in mm.parameters():
+    if p_.dim() > 1:
+        torch.nn.init.normal_(p_, std=0.6)
+P = 60
+feat = torch.zeros(1, P, N_FEAT)
+feat[..., 0] = float(np.log1p(4.0))                    # count fixed
+feat[..., 7] = 1.0
+dts = torch.linspace(0.0, 40.0, P)
+feat[..., 1] = torch.log1p(dts)                        # dt sweeps
+feat[..., 5] = dts / 5.0                               # phase sweeps too
+feat[..., 11] = dts / 5.0
+feat[..., 15] = dts / 5.0
+rl = torch.tensor([0]); ids = torch.zeros(1, P, dtype=torch.long)
+with torch.no_grad():
+    sc = mm.recurrence(rl, ids, feat)[0]
+inc = (sc[1:] - sc[:-1]).max().item()
+print(f"phase_off: max increase of score as dt grows = {inc:.3e} "
+      f"(must be <= 0)")
+assert inc <= 1e-5, "--phase_off is NOT monotone in dt; it is not the ablation"
+
+feat2 = feat.clone()
+feat2[..., 1] = float(np.log1p(5.0))                   # dt fixed
+feat2[..., 0] = torch.log1p(torch.linspace(1.0, 60.0, P))
+with torch.no_grad():
+    sc2 = mm.recurrence(rl, ids, feat2)[0]
+dec = (sc2[:-1] - sc2[1:]).max().item()
+print(f"phase_off: max decrease of score as count grows = {dec:.3e} "
+      f"(must be <= 0)")
+assert dec <= 1e-5, "--phase_off is not non-decreasing in count"
+
+# and the full model must NOT be monotone -- otherwise there is no claim
+mf = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0})); mf.eval()
+torch.nn.init.normal_(mf.w_head.weight, std=0.8)
+torch.nn.init.normal_(mf.w_head.bias, std=0.8)
+with torch.no_grad():
+    scf = mf.recurrence(rl, ids, feat)[0]
+assert (scf[1:] - scf[:-1]).max().item() > 1e-4,     "full model is monotone in dt; the phase basis is doing nothing"
+print("ablation is a real restriction OK")
 
 # ── tie-aware ranking ───────────────────────────────────────────────────────
 from train_kairos import ranks_of

@@ -268,7 +268,25 @@ class KAIROS(nn.Module):
             nn.Linear(2 * dh, 2 * dh), nn.LayerNorm(2 * dh), nn.GELU(),
         )
         self.w_head = nn.Linear(2 * dh, self.n_basis * self.n_ctx)
-        self.mono_head = nn.Linear(2 * dh, 1)
+
+        # ── the monotone baseline (--phase_off) ──────────────────────────────
+        # This has to reproduce the published family EXACTLY:
+        #     s(o) = f(count) * exp(-lambda * dt),  lambda >= 0
+        # in log space,  log a + p*log1p(count) - b*dt  with p, b >= 0,
+        # where a, p, b are predicted from (r, o) ONLY.
+        #
+        # An earlier version routed the full feature vector through the same
+        # trunk and read out a scalar. That is not an ablation: the feature
+        # vector contains the phase entries (5, 11, 15), so the MLP could
+        # still learn a non-monotone function of phase. It measured "RBF
+        # basis vs MLP on raw phase" -- both non-monotone -- and duly found
+        # them equivalent (+0.16 MRR on YAGO), which says nothing about the
+        # claim. Nothing temporal reaches this path now except count and dt.
+        self.mono_trunk = nn.Sequential(
+            nn.Linear(2 * dh, 2 * dh), nn.LayerNorm(2 * dh), nn.GELU(),
+            nn.Dropout(cfg.dropout),
+        )
+        self.mono_head = nn.Linear(2 * dh, 3)
         # small but NOT zero: a zero weight matrix makes du/dz = 0 and the
         # trunk never receives gradient for the whole run
         nn.init.normal_(self.w_head.weight, std=0.02)
@@ -291,17 +309,23 @@ class KAIROS(nn.Module):
 
     def recurrence(self, rels, sup_ids, sup_feat):
         B, S, _ = sup_feat.shape
-        x = torch.cat([
-            self.feat_norm(sup_feat),
-            self.rel_ctx(self.rel_emb(rels)).unsqueeze(1).expand(B, S, -1),
-            self.ent_ctx(self.ent_emb(sup_ids.clamp(0, self.N - 1))),
-        ], -1)
-        z = self.trunk(x)
+        h_r = self.rel_ctx(self.rel_emb(rels)).unsqueeze(1).expand(B, S, -1)
+        h_o = self.ent_ctx(self.ent_emb(sup_ids.clamp(0, self.N - 1)))
 
         if self.phase_off:
-            # monotone-only: the classical f(count)*g(dt) special case
-            return self.mono_head(z).squeeze(-1) + self.rec_bias
+            # log a(r,o) + p(r,o)*log1p(count) - b(r,o)*dt,  p, b >= 0
+            # monotone non-increasing in dt, non-decreasing in count:
+            # the published family, with a learned per-(r,o) decay rate.
+            z = self.mono_trunk(torch.cat([h_r, h_o], -1))
+            log_a, p_raw, b_raw = self.mono_head(z).unbind(-1)
+            cnt = sup_feat[..., 0]                      # log1p(count(s,r,o))
+            dt = torch.expm1(sup_feat[..., 1]).clamp(min=0)
+            return (log_a
+                    + F.softplus(p_raw) * cnt
+                    - F.softplus(b_raw) * dt) + self.rec_bias
 
+        x = torch.cat([self.feat_norm(sup_feat), h_r, h_o], -1)
+        z = self.trunk(x)
         w = F.softplus(self.w_head(z)).view(B, S, self.n_ctx, self.n_basis)
         p = torch.stack([sup_feat[..., 5], sup_feat[..., 11],
                          sup_feat[..., 15]], 2)
