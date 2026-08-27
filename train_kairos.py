@@ -102,7 +102,7 @@ def _chunk(model, cfg, it, E_d, a, b, n, use_cuda):
     chunk at half the size without duplicating the body.
     """
     with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
-        lg, lg_struct = model(
+        lg, lg_struct, lg_path = model(
             E_d, it["subs"][a:b], it["rels"][a:b], it["sup_ids"][a:b],
             it["sup_feat"][a:b], it["sup_mask"][a:b],
             return_parts=True, history=it["hist"])
@@ -122,6 +122,14 @@ def _chunk(model, cfg, it, E_d, a, b, n, use_cuda):
         if cfg.struct_aux > 0 and not cfg.rec_off:
             lc = lc + cfg.struct_aux * F.cross_entropy(
                 lg_struct.float(), obj, label_smoothing=cfg.label_smoothing)
+        # The path branch needs the same treatment, and the first run showed
+        # why: on YAGO it moved no_history H@1 only from 0.79 to 1.68 while
+        # DaeMon reaches 91.59 overall on path reasoning alone. Entering
+        # through logaddexp at bias -2 against two branches that already
+        # explain the loss leaves it almost no gradient.
+        if lg_path is not None and cfg.path_aux > 0:
+            lc = lc + cfg.path_aux * F.cross_entropy(
+                lg_path.float(), obj, label_smoothing=cfg.label_smoothing)
 
     # cross_entropy already averages inside the chunk, so a chunk carries its
     # SIZE fraction, not 1/nchunk. Chunks are unequal -- the last is a

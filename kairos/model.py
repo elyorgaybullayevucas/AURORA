@@ -367,12 +367,14 @@ class KAIROS(nn.Module):
         f_struct = self.structural(E, subs, rels)
 
         # superpose the path intensity over every entity, before recurrence
+        f_path = None
         if self.path is not None and history is not None:
             f_path = self.path(subs, rels, history, self.N)
             f_struct = torch.logaddexp(f_struct, f_path)
 
         if self.rec_off:
-            return (f_struct, f_struct) if return_parts else f_struct
+            return ((f_struct, f_struct, f_path) if return_parts
+                    else f_struct)
 
         f_rec = self.recurrence(rels, sup_ids, sup_feat)
         f_rec = f_rec.masked_fill(~sup_mask, -1e4)
@@ -381,10 +383,9 @@ class KAIROS(nn.Module):
         base = f_struct.gather(1, ids)
         merged = torch.where(sup_mask, torch.logaddexp(base, f_rec), base)
         out = f_struct.scatter(1, ids, merged)
-        # the structural scores are returned separately so they can be
-        # supervised on their own; see the deep-supervision note in
-        # train_kairos.py
-        return (out, f_struct) if return_parts else out
+        # the branch scores are returned separately so each can be supervised
+        # on its own; see the deep-supervision note in train_kairos.py
+        return (out, f_struct, f_path) if return_parts else out
 
     # ── diagnostic: learned kernel shape ─────────────────────────────────────
 
