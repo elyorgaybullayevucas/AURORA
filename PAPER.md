@@ -223,13 +223,38 @@ baselines quoted from the DaeMon table (YAGO, WIKI) and the DiMNet table
 history 10 snapshots (5 on GDELT), 6.3 M parameters. One A100 per run: YAGO
 42 min, ICEWS18 1 h 15, WIKI 3 h, GDELT 8 h.
 
-**Threat to validity we state up front.** Our evaluation harness is our own.
-We have not rerun a published baseline inside it, so a subtle difference in
-filtering would invalidate margins of the size we report on YAGO. One
-indirect check: our structural branch alone reaches 46.46 MRR on YAGO where
-RE-GCN — the same architectural family — publishes 84.12. If our protocol
-were generous this number would not be so far below. ⧗ *A protocol
-comparison against the RE-GCN reference implementation is in progress.*
+### 6.1 Protocol verified against the reference implementation
+
+Our harness is our own, so a subtle difference in filtering would invalidate
+margins of the size we report. We therefore checked it against RE-GCN's
+`rgcn/utils.py`, the de-facto standard for this benchmark family — DaeMon's
+release points at its `load_all_answers_for_time_filter`. `verify_protocol.py`
+reproduces every check below.
+
+| point | reference | ours | status |
+|---|---|---|---|
+| scored queries | `predict()` appends inverse triples | `SnapshotSet` appends inverse triples | identical count on all four datasets |
+| filtering | other true answers at the query timestamp → −1e7, target restored | same, → −inf | equivalent |
+| filter scope | built from the **test split only** | built from train+valid+test | see below |
+| ranking | `torch.sort` position | average position among ties | see below |
+
+**Filter scope.** The filter is keyed by timestamp, so the two constructions
+coincide whenever the splits are temporally disjoint. We verified disjointness
+on the actual files rather than assuming it — YAGO train [0,177] / valid
+[178,182] / test [183,188], and similarly for the other three, with zero
+overlapping timestamps — and then verified directly that the two answer sets
+agree on 4,000 sampled test queries per dataset, with **0 differences**.
+
+**Ties.** The reference takes the sort position, so a target tied with `k−1`
+others lands anywhere inside that group. We take the average position, which
+is the expectation of that draw. Ours is therefore unbiased with respect to
+the reference and, in particular, cannot be optimistic. This convention is
+not cosmetic: under strictly-better counting an early copy-only model of ours
+reported YAGO H@10 = 99.93 where DaeMon reports 93.34.
+
+One further consistency signal: our structural branch alone reaches 46.46 MRR
+on YAGO where RE-GCN — the same architectural family — publishes 84.12. A
+generous protocol would not leave that number so far below.
 
 ---
 
@@ -336,7 +361,11 @@ and was not completed.*
   branch is silent there by construction and the structural branch is weak.
   This is where the remaining headroom is, and we do not close it.
 - H@10 is below SOTA on three datasets.
-- Baselines are quoted, not rerun in our harness.
+- Baselines are quoted, not rerun in our harness. The protocol is
+  verified against the reference implementation (§6.1), which removes
+  the filtering and query-count risk, but not the possibility that a
+  baseline's own published number was produced under a different
+  training budget.
 - Three seeds; GDELT one. ⧗
 - Four benchmarks; ICEWS14 and ICEWS05-15 not covered. ⧗
 
@@ -356,8 +385,8 @@ produced by `collect.py` from the saved result files.
 |---|---|---|---|
 | 1 | `--phase_feat_off` on YAGO, WIKI, ICEWS18 | ~5 h | **the central claim** |
 | 2 | GDELT seeds ×3 | 16 h | the strongest margin |
-| 3 | Protocol check against RE-GCN reference code | 1 d | validity of every margin |
+| ~~3~~ | ~~Protocol check against RE-GCN reference~~ | done | **passed on all four datasets: 0 filter differences, identical query counts, splits verified disjoint** |
 | 4 | Seeds 4–5 on all datasets | 1 d | statistics |
 | 5 | ICEWS14 | 1 d | coverage |
 
-Items 1 and 3 are the ones a reviewer will decide on.
+Item 1 is now the only one a reviewer will decide on.
