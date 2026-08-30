@@ -29,6 +29,13 @@ PROTO = "time_aware_filtered"
 
 
 def load(save_dir="checkpoints"):
+    """
+    Group runs by (dataset, variant) and keep EVERY seed under that key.
+
+    Keying by variant alone silently kept only the last file loaded, so a
+    five-seed sweep -- all of which write variant "full" -- would have been
+    reported as a single run.
+    """
     runs = {}
     for f in sorted(glob.glob(os.path.join(save_dir, "*_kairos_*_results.json"))):
         try:
@@ -36,8 +43,30 @@ def load(save_dir="checkpoints"):
         except Exception as e:
             print(f"[skip] {f}: {e}")
             continue
-        runs.setdefault(d["dataset"], {})[d["variant"]] = d
+        runs.setdefault(d["dataset"], {}).setdefault(d["variant"], []).append(d)
     return runs
+
+
+def agg(entries, proto=None, key="MRR"):
+    """mean, std, n over the seeds of one (dataset, variant)."""
+    vals = []
+    for d in entries:
+        t = d["test"].get(proto) if proto else d["test"]
+        if t and key in t:
+            vals.append(t[key] * 100)
+    if not vals:
+        return None, None, 0
+    m = sum(vals) / len(vals)
+    if len(vals) == 1:
+        return m, 0.0, 1
+    var = sum((v - m) ** 2 for v in vals) / (len(vals) - 1)
+    return m, var ** 0.5, len(vals)
+
+
+def fmt(m, sd, n):
+    if m is None:
+        return "     -  "
+    return f"{m:6.2f}" + (f"±{sd:.2f}" if n > 1 else "      ")
 
 
 def pct(x):
@@ -59,18 +88,24 @@ def main():
             star = "  <- SOTA" if name == SOTA.get(ds) else ""
             print(f"  {name:<22} {mrr:>7.2f} {h1:>7.2f} {'':>7} {'':>7}{star}")
         print("  " + "-" * 66)
-        for variant, d in sorted(runs[ds].items()):
-            t = d["test"].get(PROTO)
-            if not t:
-                continue
-            print(f"  {'KAIROS ' + variant:<22} {pct(t['MRR'])} "
-                  f"{pct(t['Hits@1'])} {pct(t['Hits@3'])} {pct(t['Hits@10'])}")
+        for variant, entries in sorted(runs[ds].items()):
+            cols = [fmt(*agg(entries, PROTO, k))
+                    for k in ("MRR", "Hits@1", "Hits@3", "Hits@10")]
+            n = agg(entries, PROTO, "MRR")[2]
+            label = f"KAIROS {variant}" + (f" [{n} seeds]" if n > 1 else "")
+            print(f"  {label:<26} " + " ".join(cols))
 
-        full = runs[ds].get("full", {}).get("test", {}).get(PROTO)
+        fe = runs[ds].get("full", [])
+        full = fe[0]["test"].get(PROTO) if fe else None
         ref = BASELINES.get(ds, {}).get(SOTA.get(ds))
         if full and ref:
-            dm = full["MRR"] * 100 - ref[0]
-            dh = full["Hits@1"] * 100 - ref[1]
+            dm = agg(fe, PROTO, "MRR")[0] - ref[0]
+            dh = agg(fe, PROTO, "Hits@1")[0] - ref[1]
+            sd_m = agg(fe, PROTO, "MRR")[1]
+            n_seeds = agg(fe, PROTO, "MRR")[2]
+            if n_seeds > 1 and abs(dm) < sd_m:
+                print(f"  => vs {SOTA[ds]}: MRR {dm:+.2f} but seed std is "
+                      f"{sd_m:.2f} over {n_seeds} seeds -- NOT separated")
             verdict = "beats" if (dm > 0 and dh > 0) else \
                       "mixed" if (dm > 0 or dh > 0) else "below"
             print(f"  => vs {SOTA[ds]}: MRR {dm:+.2f}, H@1 {dh:+.2f}  [{verdict}]")
@@ -83,15 +118,15 @@ def main():
     print(f"  {'dataset':<9} {'variant':<16} "
           f"{'blocked H@1':>12} {'clean H@1':>11} {'no_hist H@1':>12}")
     for ds in ("YAGO", "WIKI", "ICEWS18", "GDELT"):
-        for variant, d in sorted(runs.get(ds, {}).items()):
-            t = d["test"]
+        for variant, entries in sorted(runs.get(ds, {}).items()):
+            t = entries[0]["test"]
             g = lambda k: (f"{t[k]['Hits@1']*100:.2f}" if k in t else "-")
             print(f"  {ds:<9} {variant:<16} {g('blocked'):>12} "
                   f"{g('clean'):>11} {g('no_history'):>12}")
 
     for ds in runs:
-        f = runs[ds].get("full", {}).get("test", {})
-        p = runs[ds].get("monotone-kernel", {}).get("test", {})
+        f = (runs[ds].get("full") or [{}])[0].get("test", {})
+        p = (runs[ds].get("monotone-kernel") or [{}])[0].get("test", {})
         if "blocked" in f and "blocked" in p and "clean" in f and "clean" in p:
             db = (f["blocked"]["Hits@1"] - p["blocked"]["Hits@1"]) * 100
             dc = (f["clean"]["Hits@1"] - p["clean"]["Hits@1"]) * 100
@@ -108,8 +143,8 @@ def main():
     print(f"  {'dataset':<9} {'variant':<16} {'raw MRR':>9} {'raw H@1':>9} "
           f"{'t-unaware MRR':>15}")
     for ds in ("YAGO", "WIKI", "ICEWS18", "GDELT"):
-        for variant, d in sorted(runs.get(ds, {}).items()):
-            t = d["test"]
+        for variant, entries in sorted(runs.get(ds, {}).items()):
+            t = entries[0]["test"]
             r = t.get("raw", {}); u = t.get("time_unaware_filtered", {})
             print(f"  {ds:<9} {variant:<16} "
                   f"{r.get('MRR',0)*100:>9.2f} {r.get('Hits@1',0)*100:>9.2f} "
