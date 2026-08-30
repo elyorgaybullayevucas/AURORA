@@ -33,8 +33,15 @@ _C = dict(
 )
 
 DATASETS: Dict[str, Dict[str, Any]] = {
+    # struct_aux is OFF here. Paired on seeds 2, 3 and 7, deep supervision
+    # on the structural branch cost 0.87 MRR and 1.66 H@1 on YAGO, in the
+    # same direction on every seed (+0.38, +1.08, +1.14 MRR without it). It
+    # was added to stop recurrence from starving the structural branch, and
+    # on a 92.8%-recurrent dataset that trade is simply not worth making --
+    # the structural branch has little to contribute and forcing it distorts
+    # the joint objective. ICEWS18 and GDELT have not been tested this way.
     "YAGO":    dict(_C, hist_len=10, max_support=256, rel_topk=48,
-                    epochs=60, dropout=0.15),
+                    epochs=60, dropout=0.15, struct_aux=0.0),
     "WIKI":    dict(_C, hist_len=10, max_support=256, rel_topk=48,
                     epochs=60, dropout=0.15),
     "ICEWS18": dict(_C, hist_len=10, max_support=256, rel_topk=96,
