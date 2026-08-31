@@ -86,7 +86,10 @@ class ExternalScorer:
                 f"{self.N} entities; the entity id spaces do not match, so the "
                 f"comparison would be meaningless")
         obj = int(obj)
-        tgt = s[:, obj].view(1, 1)
+        # a copy, not a view: the filtering below writes into a clone of `s`,
+        # but keeping tgt independent of both is what makes that safe to
+        # change later
+        tgt = s[:, obj].clone().view(1, 1)
 
         # raw
         self.M.add("raw", ranks_of(s, tgt))
@@ -182,10 +185,19 @@ def self_check(dataset, tag=None, variant="full", data_root="data",
     if os.path.exists(ck):
         sd = T.load(ck, map_location=dev, weights_only=True)["model"]
         own = model.state_dict()
-        model.load_state_dict({k: v for k, v in sd.items()
-                               if k in own and own[k].shape == v.shape},
-                              strict=False)
-        print(f"  loaded {ck}")
+        ok = {k: v for k, v in sd.items()
+              if k in own and own[k].shape == v.shape}
+        model.load_state_dict(ok, strict=False)
+        left = sorted(set(own) - set(ok))
+        print(f"  loaded {len(ok)}/{len(own)} tensors from {ck}")
+        if left:
+            # Say it loudly. A checkpoint written before the architecture
+            # changed loads "successfully" with parts of the model still
+            # random, and the accuracy printed below is then meaningless even
+            # though the filter check it exists for is still valid.
+            print(f"  NOTE: left at initialisation: {left}")
+            print("        the MRR below is therefore NOT this model's "
+                  "accuracy; only the rank-gap line is under test here")
     else:
         print(f"  no checkpoint at {ck}; checking with an untrained model "
               f"(the filter is what is under test, not the accuracy)")
@@ -210,9 +222,15 @@ def self_check(dataset, tag=None, variant="full", data_root="data",
                            int(it["objs"][i]))
                 got = sc.add(s, r, it["t"], o, row.cpu().numpy())
 
-                # the reference path, exactly as evaluate() does it
+                # The reference path, exactly as evaluate() does it.
+                #
+                # tgt must be a COPY. evaluate() gets it from gather(), which
+                # allocates; taking a view here instead aliases the row, so
+                # blanking the other true answers also blanks the target and
+                # every rank comes out as N. That is what this check caught on
+                # its first run.
                 one = row.view(1, -1).clone()
-                tgt = one[:, o].view(1, 1)
+                tgt = one[:, o].clone().view(1, 1)
                 ans = data.index.answers(s, r, it["t"])
                 if len(ans):
                     one[0, T.from_numpy(np.asarray(ans, np.int64)).to(dev)] = \
