@@ -42,12 +42,16 @@ BANNER = r"""
 ║  λ(o) = λ_struct(o | G_<t, s, r)  +  λ_rec(o | H_o, s, r)                 ║
 ║  superposition ⇒ logaddexp, not a sum of logits; no gate to collapse      ║
 ║                                                                           ║
-║  prior recurrence scores are f(count)·g(Δt) with g non-increasing         ║
-║  (CyGNet, CENET, TiRGN, RE-GCN, DaeMon; GAttNHP learns γ but keeps exp)   ║
-║  ⇒ a distractor with smaller Δt and larger count can never be outranked   ║
+║  prior recurrence scores are ψ(count, Δt), non-decreasing in count and    ║
+║  non-increasing in Δt — whether the two are multiplied (CyGNet, CENET,    ║
+║  TiRGN, RE-GCN, DaeMon; GAttNHP learns γ but keeps exp) or added          ║
+║  (CountTRuCoLa) ⇒ a distractor with smaller Δt and larger count can       ║
+║  never be outranked, however the parameters are fitted                    ║
 ║                                                                           ║
-║  λ_rec = learned over 13 inter-arrival statistics, not just (count, Δt)   ║
+║  λ_rec = learned over 13 inter-arrival statistics, conditioned on the     ║
+║  query — outside that family in both of the two available ways            ║
 ║  --phase_off restores the published two-feature monotone form             ║
+║  --query_off drops the subject conditioning                               ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 """
 
@@ -373,7 +377,7 @@ def main():
     log_path = os.path.join(cfg.log_dir, f"{name}.jsonl")
     best, best_ep, bad = 0.0, 0, 0
 
-    print(f"\n{'═'*len(HDR)}\n  KAIROS │ {cfg.dataset} │ {variant}"
+    print(f"\n{'═'*len(HDR)}\n  CADENCE │ {cfg.dataset} │ {variant}"
           f"\n{'═'*len(HDR)}\n")
     print(HDR); print(SEP)
 

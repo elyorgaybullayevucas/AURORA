@@ -475,8 +475,11 @@ otherwise depend on the split.
 Four benchmarks, time-aware filtered protocol, baselines quoted from the
 DaeMon table (YAGO, WIKI) and the DiMNet table (ICEWS18, GDELT), both of which
 report that protocol. $d=200$, three GCN layers, history of ten snapshots
-(five on GDELT), $5.96$M parameters. One A100 per run: YAGO 42\,min, ICEWS18
-1\,h\,15, WIKI 3\,h, GDELT 8\,h.
+(five on GDELT). Parameter counts are dominated by the entity table and so are
+dataset-dependent: $6.0$M on YAGO and $8.6$M on ICEWS18. The recurrence branch
+is $0.31$M of that on every dataset, since it is sized by the relation and
+entity context widths rather than by the vocabulary. One A100 per run: YAGO
+42\,min, ICEWS18 1\,h\,15, WIKI 3\,h, GDELT 8\,h.
 
 \subsection{The protocol is verified against the reference}
 \label{sec:protocol}
