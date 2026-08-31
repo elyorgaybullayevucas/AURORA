@@ -112,9 +112,10 @@ def main():
 
     # ── the claim: blocked vs clean across variants ──────────────────────────
     print(f"\n{'='*70}\n  CLAIM TEST — blocked vs clean, by variant\n{'='*70}")
-    print("  If the phase basis is doing the work, dropping it (--phase_off)")
-    print("  must cost far more on 'blocked' than on 'clean'. Similar losses")
-    print("  on both would mean the basis was only extra capacity.\n")
+    print("  The clean isolation is full vs no-phase-feature: same trunk,")
+    print("  same 13 other features, only the phase entries blanked.")
+    print("  full vs monotone-kernel also removes 14 features, so nothing it")
+    print("  reports can be attributed to phase.\n")
     print(f"  {'dataset':<9} {'variant':<16} "
           f"{'blocked H@1':>12} {'clean H@1':>11} {'no_hist H@1':>12}")
     for ds in ("YAGO", "WIKI", "ICEWS18", "GDELT"):
@@ -124,19 +125,29 @@ def main():
             print(f"  {ds:<9} {variant:<16} {g('blocked'):>12} "
                   f"{g('clean'):>11} {g('no_history'):>12}")
 
-    for ds in runs:
-        f = (runs[ds].get("full") or [{}])[0].get("test", {})
-        p = (runs[ds].get("monotone-kernel") or [{}])[0].get("test", {})
-        if "blocked" in f and "blocked" in p and "clean" in f and "clean" in p:
-            db = (f["blocked"]["Hits@1"] - p["blocked"]["Hits@1"]) * 100
-            dc = (f["clean"]["Hits@1"] - p["clean"]["Hits@1"]) * 100
-            print(f"\n  {ds}: phase basis is worth {db:+.2f} H@1 on blocked "
-                  f"and {dc:+.2f} on clean")
-            if db > dc + 0.5:
-                print("       -> consistent with the claim")
-            else:
-                print("       -> NOT consistent with the claim; the basis is "
-                      "not acting where the argument says it should")
+    print(f"\n  {'dataset':<9} {'what is compared':<36} "
+          f"{'blocked':>9} {'clean':>9}")
+    for ds in ("YAGO", "WIKI", "ICEWS18", "GDELT"):
+        fu = (runs.get(ds, {}).get("full") or [{}])[0].get("test", {})
+        nf = (runs.get(ds, {}).get("no-phase-feature") or [{}])[0].get("test", {})
+        mk = (runs.get(ds, {}).get("monotone-kernel") or [{}])[0].get("test", {})
+
+        def delta(a, b, k):
+            if k in a and k in b:
+                return f"{(a[k]['Hits@1'] - b[k]['Hits@1']) * 100:+9.2f}"
+            return f"{'-':>9}"
+
+        if nf:
+            print(f"  {ds:<9} {'phase alone (full - no_phase_feat)':<36} "
+                  f"{delta(fu, nf, 'blocked')} {delta(fu, nf, 'clean')}")
+        if mk:
+            print(f"  {ds:<9} {'phase + 14 features (full - mono)':<36} "
+                  f"{delta(fu, mk, 'blocked')} {delta(fu, mk, 'clean')}")
+
+    print()
+    print("  Where the first row is around zero or negative while the second")
+    print("  is large, the gain belongs to the other temporal features and")
+    print("  not to phase.")
 
     print(f"\n{'='*70}\n  OTHER PROTOCOLS (for comparison with papers that "
           f"report them)\n{'='*70}")
