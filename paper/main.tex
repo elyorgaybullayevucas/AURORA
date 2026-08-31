@@ -67,24 +67,100 @@ recurrence
 \section{Introduction}
 \label{sec:intro}
 
-\todo{Draft. The argument, in order:}
-\begin{enumerate}
-  \item Recurrence dominates TKG forecasting, and the field knows it: a plain
-        recurrency baseline matches four published architectures.
-  \item So the question is not whether to model recurrence, but what existing
-        recurrence models cannot express.
-  \item They share one functional form, and that form has a blind spot that
-        is provable and whose size is measurable from the data alone.
-  \item The blind spot covers $15.8$--$41.6\%$ of test queries, so it is not a
-        corner case that a structural branch can be assumed to absorb.
-  \item Contributions: Proposition~\ref{prop:blocked} and the model-free
-        diagnostic it induces; the \textsc{Cadence} recurrence intensity, which
-        strictly contains the family the proposition constrains; a
-        superposition rule that follows from the point-process reading and
-        admits no gate; results on four benchmarks under a protocol verified
-        against the reference implementation; and a stratified evaluation that
-        tests the mechanism rather than only the headline metric.
-\end{enumerate}
+A temporal knowledge graph records facts that hold at a time, as quadruples
+$(s,r,o,t)$. Forecasting asks which object completes $(s,r,?,t)$ using only
+what happened strictly before $t$ --- who a state will next sanction, which
+office a person will next hold --- and it is the setting in which such graphs
+are actually deployed.
+
+The dominant signal in this task is repetition. A large fraction of the facts
+to be predicted have occurred before with the same subject and relation, and
+the field has documented how far that alone goes: a recurrency baseline that
+simply ranks candidates by how often and how recently they co-occurred with
+$(s,r)$ is competitive with several published
+architectures~\cite{historyrepeats,cygnet}. Every strong system since has
+included such a term. CyGNet~\cite{cygnet} copies from a frequency vector over
+the history; CENET~\cite{cenet} adds a contrastive historical / non-historical
+oracle on top of one; TiRGN~\cite{tirgn} and RE-GCN~\cite{regcn} attach one to
+a recurrent structural encoder; DaeMon~\cite{daemon} carries one alongside
+path evidence; GAttNHP~\cite{gattnhp} recasts the task as a neural Hawkes
+process and learns a per-entity decay rate.
+
+The interesting question is therefore not whether to model repetition, but
+what the models we already have \emph{cannot express}. Read as scorers, all of
+the above assign a historical candidate $o$ a value of the form
+$f(c_o)\,g(\Delta t_o)$ --- a non-decreasing function of how often the fact
+occurred, times a non-increasing function of how long ago it last occurred.
+The parameterisations differ, and GAttNHP fits the decay rate rather than
+fixing it, but the shape is common to all of them, and it is the shape that
+binds.
+
+This paper's starting point is that the shape has a blind spot which is
+provable in one line and, more importantly, is \emph{measurable without
+reference to any model}. If some distractor occurred both more often and more
+recently than the true answer, then no non-decreasing $f$, no non-increasing
+$g$, and no fitted decay rate whatsoever can rank the answer above it: both
+factors of the product already favour the distractor
+(Proposition~\ref{prop:blocked}). We call such a query \emph{monotone-blocked}.
+The definition mentions only the query and the observed histories of its
+candidates, so the share of blocked queries is a property of a dataset rather
+than of a system, and it can be counted directly. On the four standard
+benchmarks it is $41.6\%$ (YAGO), $29.3\%$ (WIKI), $26.6\%$ (ICEWS18) and
+$15.8\%$ (GDELT) of test queries.
+
+A fair objection is that no published system uses its recurrence term in
+isolation: each pairs it with a structural encoder that is not subject to the
+bound and can rescue a blocked query. That is true, and it is why we do not
+claim these systems fail on those queries. What the measurement establishes is
+narrower and still consequential: on between a sixth and two-fifths of all
+queries, the component that carries the dominant signal of the task is
+structurally unable to produce the right ordering and must hand the query to
+the branch that is weaker on exactly this kind of data. That is a large amount
+of delegation to design in on purpose.
+
+Our response is to stop repairing the product and leave it. The recurrence
+branch of \textsc{Cadence} summarises a candidate's observed history by
+thirteen inter-arrival statistics --- counts, elapsed times and mean gaps for
+the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$ views, plus gap dispersion,
+span, rate and a has-history flag --- and maps them through an unconstrained
+network. Nothing in it is monotone in $\Delta t$, nothing is separable into a
+count factor and a time factor, and the classical count-times-decay scorer is
+one point in its hypothesis space, so the generalisation is strict. Holding the
+backbone, the optimiser and the schedule fixed and restricting only this branch
+to the published form costs $1.83$, $8.11$, $5.39$ and $4.57$ MRR on the four
+benchmarks: the functional form, not the encoder, carries the gain.
+
+Two further choices follow from taking the point-process reading
+seriously~\cite{daleyvere}. Since the two branches are intensities of
+superposed processes, their intensities \emph{add}, so they must be combined by
+a log-sum-exp; summing logits, as a gated architecture effectively does,
+multiplies intensities instead, which has no meaning under the model and lets
+one branch rescale the other. And because superposition prescribes the
+combination, there is no mixing weight to learn --- hence no gate that can
+collapse onto a single branch, a failure we observed directly in earlier gated
+variants of this work.
+
+Because our margins over the state of the art are in places smaller than the
+differences between evaluation conventions in this literature, we verified our
+harness against the RE-GCN reference implementation on all four datasets before
+reporting anything (Section~\ref{sec:protocol}).
+
+\paragraph{Contributions}
+\begin{itemize}
+  \item Proposition~\ref{prop:blocked}, which identifies a provable blind spot
+        shared by every recurrence mechanism in this literature, and the
+        model-free diagnostic it induces --- a dataset statistic that can be
+        computed before any model is trained.
+  \item \textsc{Cadence}, whose recurrence intensity strictly contains the
+        family the proposition constrains, together with a superposition rule
+        that follows from the point-process reading and admits no gate.
+  \item State-of-the-art results on YAGO, WIKI, ICEWS18 and GDELT under the
+        time-aware filtered protocol, verified against the reference
+        implementation rather than assumed to match it.
+  \item A stratified evaluation that tests the proposed mechanism on the
+        stratum it targets, rather than reporting only a pooled metric, and two
+        negative results reported in full.
+\end{itemize}
 
 \section{Related Work}
 \label{sec:related}
