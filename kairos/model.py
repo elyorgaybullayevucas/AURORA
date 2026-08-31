@@ -1,26 +1,18 @@
 """
-KAIROS — phase-conditioned recurrence for temporal knowledge graph forecasting.
-
-(kairos: the opportune moment. The model is about WHEN a fact is due.)
+CADENCE — recurrence intensity from full inter-arrival statistics.
 
 ============================== WHERE THIS SITS ==============================
-Two families currently hold the benchmarks, and they win for different
-reasons:
+Two families hold the benchmarks, for different reasons. DaeMon learns
+query-aware temporal PATH representations and leads WIKI (82.38 MRR) and
+YAGO (91.59). DiMNet evolves subgraph sequences with cross-time perception
+and disentangles node features into active and stable factors, leading
+ICEWS18 (34.13) and GDELT (21.93); its ablation attributes -11.38 MRR to
+disentanglement, -9.62 to virtual-subgraph refinement and -4.97 to
+multi-span.
 
-  DaeMon (IJCAI'23) learns query-aware temporal PATH representations between
-  the subject and each candidate. It dominates WIKI (82.38 MRR) and YAGO
-  (91.59), where facts persist and recur.
-
-  DiMNet (2025) evolves subgraph sequences with cross-time perception and
-  DISENTANGLES node features into active and stable factors. It leads
-  ICEWS18 (34.13) and GDELT (21.93). Its ablation is unambiguous about what
-  carries the model: removing disentanglement costs 11.38 MRR, removing
-  virtual-subgraph refinement 9.62, removing multi-span 4.97.
-
-This model takes the backbone components that the literature has already
-shown to matter -- multi-span evolution with cross-time carry, and
-active/stable disentanglement -- and cites them as such. They are not the
-contribution. They are the floor a new claim has to be tested on.
+This model takes multi-span evolution and active/stable disentanglement as
+backbone and cites them as prior work. They are not the contribution; they
+are the floor a new claim has to be tested on.
 
 ================================ THE CLAIM ==================================
 Every recurrence mechanism in this literature scores a historical candidate
@@ -36,21 +28,32 @@ count_o >= count_{o*}. Then s(o) >= s(o*) for every non-decreasing f and
 every non-increasing g. No decay rate, learned or fixed, and no reweighting
 of counts ranks o* strictly first.
 
-Such queries are MONOTONE-BLOCKED. Their rate is a property of the data, is
-measured by diagnose.py before training, and upper-bounds what the whole
-family can reach on the recurrent subset. They are produced by periodic
-recurrence, refractory periods, and burst-then-die processes.
+Such queries are MONOTONE-BLOCKED. Their rate is a property of the data,
+measured by diagnose.py before any training: 41.6% of YAGO, 29.3% of WIKI,
+26.6% of ICEWS18 and 15.8% of GDELT test queries.
 
-KAIROS sets
+The published form is, in the end, a scorer over TWO features. This model
+replaces it with a learned function of thirteen inter-arrival statistics --
+counts, recency, mean gap, gap dispersion, span and rate, over the (s,r),
+(s,.) and (r,.) histories -- which is not confined to be monotone in dt.
+--phase_off restores the two-feature monotone form as the ablation.
 
-    log lambda_rec(o) = log sum_j w_j(r, o, phi_o) kappa_j(p_o),  w_j >= 0
-    p_o = dt_o / mean_gap_o                                       (PHASE)
+=========================== A HYPOTHESIS THAT FAILED ========================
+An earlier version placed a radial basis over PHASE = dt / mean_gap at the
+centre of the model, on the strength of a real measurement: the median phase
+of the true answer on YAGO and WIKI is exactly 1.000, so facts recur at close
+to their own mean waiting time, and a monotone kernel peaks at phase 0.
 
-kappa a fixed RBF basis over phase. Non-monotone in dt by construction, so
-the blocked queries become reachable. Fitting w_j to exp(-lambda*p) recovers
-the classical term, so every scorer above is a special case up to basis
-resolution; --phase_off restores exactly that special case as the ablation
-that isolates the claim.
+The mechanism does not survive its own ablation. Blanking only the phase
+inputs, holding the trunk and the other thirteen features fixed, moves H@1 on
+the blocked stratum by -0.09 (YAGO), -0.52 (WIKI), -0.13 (ICEWS18) and -0.11
+(GDELT) -- zero or slightly better without it, on all four. WIKI is the
+sharpest case: median phase exactly 1.000, the largest gap to the monotone
+form of any dataset, and still 0.52 better with phase removed. What that gap
+measures is the other thirteen features.
+
+Phase is therefore gone from the model, and the measurement is reported as a
+negative result rather than as a mechanism.
 
 =============================== COMBINATION =================================
 A query is a draw from a superposition of two marked point processes,
@@ -241,13 +244,6 @@ class KAIROS(nn.Module):
         self.rec_off = cfg.rec_off
         self.struct_off = cfg.struct_off
         self.phase_off = cfg.phase_off
-        # Isolates the phase SIGNAL from feature richness. --phase_off swaps
-        # the whole branch for the published monotone form, which changes two
-        # things at once: it removes the non-monotone basis AND cuts the
-        # branch down from 16 features to (count, dt). This variant keeps the
-        # trunk and every other feature and only blanks the three phase
-        # entries, so the difference against `full` is attributable to phase.
-        self.phase_feat_off = getattr(cfg, "phase_feat_off", False)
         self.path_off = getattr(cfg, "path_off", True)
 
         self.ent_emb = nn.Embedding(num_entities, d)
@@ -263,24 +259,33 @@ class KAIROS(nn.Module):
         self.path = None if self.path_off else PathBranch(
             cfg.path_dim, cfg.path_layers, R2, cfg.dropout)
 
-        # ── recurrence kernel: the contribution ──────────────────────────────
-        centres = torch.tensor([0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.5,
-                                2.0, 2.5, 3.0, 4.0, 6.0, 9.0, 13.0])
-        self.register_buffer("centres", centres)
-        self.log_width = nn.Parameter(
-            torch.full((len(centres),), math.log(0.3)))
-        self.n_basis = len(centres)
-        self.n_ctx = 3                        # phases: (s,r), (s,.), (r,.)
+        # ── recurrence intensity ─────────────────────────────────────────────
+        # A learned function of the full inter-arrival statistics: counts,
+        # recency, mean gap, gap dispersion, span and rate, over the (s,r),
+        # (s,.) and (r,.) histories.
+        #
+        # The three PHASE entries (indices 5, 11, 15 = dt / mean_gap) are
+        # deliberately excluded. An earlier version of this work put a radial
+        # basis over phase here and claimed it as the mechanism. Blanking the
+        # phase entries alone, holding the trunk and all other features fixed,
+        # changes H@1 on the blocked stratum by -0.09 (YAGO), -0.52 (WIKI),
+        # -0.13 (ICEWS18) and -0.11 (GDELT) -- zero or slightly in favour of
+        # dropping it, on all four. The gain attributed to phase belongs to
+        # the other thirteen features, so the basis and the phase inputs are
+        # gone and the model is smaller for it.
+        keep = [i for i in range(N_FEAT) if i not in (5, 11, 15)]
+        self.register_buffer("feat_idx", torch.tensor(keep, dtype=torch.long))
+        n_feat = len(keep)
 
-        self.feat_norm = nn.LayerNorm(N_FEAT)
+        self.feat_norm = nn.LayerNorm(n_feat)
         self.rel_ctx = nn.Linear(d, dh)
         self.ent_ctx = nn.Linear(d, dh)
         self.trunk = nn.Sequential(
-            nn.Linear(N_FEAT + 2 * dh, 2 * dh), nn.LayerNorm(2 * dh),
+            nn.Linear(n_feat + 2 * dh, 2 * dh), nn.LayerNorm(2 * dh),
             nn.GELU(), nn.Dropout(cfg.dropout),
             nn.Linear(2 * dh, 2 * dh), nn.LayerNorm(2 * dh), nn.GELU(),
         )
-        self.w_head = nn.Linear(2 * dh, self.n_basis * self.n_ctx)
+        self.rec_head = nn.Linear(2 * dh, 1)
 
         # ── the monotone baseline (--phase_off) ──────────────────────────────
         # This has to reproduce the published family EXACTLY:
@@ -302,8 +307,8 @@ class KAIROS(nn.Module):
         self.mono_head = nn.Linear(2 * dh, 3)
         # small but NOT zero: a zero weight matrix makes du/dz = 0 and the
         # trunk never receives gradient for the whole run
-        nn.init.normal_(self.w_head.weight, std=0.02)
-        nn.init.zeros_(self.w_head.bias)
+        nn.init.normal_(self.rec_head.weight, std=0.02)
+        nn.init.zeros_(self.rec_head.bias)
         nn.init.normal_(self.mono_head.weight, std=0.02)
         nn.init.zeros_(self.mono_head.bias)
         self.rec_bias = nn.Parameter(torch.tensor(cfg.rec_bias_init))
@@ -337,28 +342,9 @@ class KAIROS(nn.Module):
                     + F.softplus(p_raw) * cnt
                     - F.softplus(b_raw) * dt) + self.rec_bias
 
-        feat = sup_feat
-        if self.phase_feat_off:
-            feat = feat.clone()
-            feat[..., 5] = 0.0        # phase (s,r,o)
-            feat[..., 11] = 0.0       # phase (s,.,o)
-            feat[..., 15] = 0.0       # phase (r,.,o)
-
-        x = torch.cat([self.feat_norm(feat), h_r, h_o], -1)
-        z = self.trunk(x)
-
-        if self.phase_feat_off:
-            # same trunk, same features minus phase, scalar readout
-            return self.mono_head(z)[..., 0] + self.rec_bias
-
-        w = F.softplus(self.w_head(z)).view(B, S, self.n_ctx, self.n_basis)
-        p = torch.stack([sup_feat[..., 5], sup_feat[..., 11],
-                         sup_feat[..., 15]], 2)
-        c = self.centres.view(1, 1, 1, -1)
-        wd = self.log_width.exp().view(1, 1, 1, -1).clamp(1e-2, 8.0)
-        k = torch.exp(-0.5 * ((p.unsqueeze(-1) - c) / wd) ** 2)
-        lam = (w * k).sum(-1).sum(-1)
-        return torch.log(lam + 1e-8) + self.rec_bias
+        feat = sup_feat.index_select(-1, self.feat_idx)
+        z = self.trunk(torch.cat([self.feat_norm(feat), h_r, h_o], -1))
+        return self.rec_head(z).squeeze(-1) + self.rec_bias
 
     # ── forward ──────────────────────────────────────────────────────────────
 
@@ -390,17 +376,28 @@ class KAIROS(nn.Module):
     # ── diagnostic: learned kernel shape ─────────────────────────────────────
 
     @torch.no_grad()
-    def kernel(self, rel_id, ent_id, phases, device):
+    def kernel(self, rel_id, ent_id, dts, device, count=4.0, mean_gap=5.0):
+        """
+        Learned recurrence intensity as a function of elapsed time, with the
+        count and the mean inter-arrival gap held fixed.
+
+        This used to sweep phase, which stopped being meaningful when the
+        phase inputs were removed. The question it answers is unchanged and is
+        the one Proposition 1 is about: is the learned intensity monotone in
+        elapsed time? The published form is monotone by construction; a
+        non-monotone curve here is what places this model outside that family.
+        """
         self.eval()
-        P = len(phases)
-        ph = torch.as_tensor(phases, dtype=torch.float32, device=device)
+        P = len(dts)
+        dt = torch.as_tensor(dts, dtype=torch.float32, device=device)
         f = torch.zeros(1, P, N_FEAT, device=device)
-        f[..., 0] = math.log1p(4.0)
-        f[..., 2] = math.log1p(5.0)
-        f[..., 7] = 1.0
-        f[..., 8] = math.log1p(4.0)
-        f[..., 1] = torch.log1p(ph * 5.0)
-        f[..., 5] = ph; f[..., 11] = ph; f[..., 15] = ph
+        f[..., 0] = math.log1p(count)          # (s,r,o) count
+        f[..., 1] = torch.log1p(dt)            # (s,r,o) recency
+        f[..., 2] = math.log1p(mean_gap)       # mean inter-arrival
+        f[..., 4] = math.log1p(mean_gap * count)   # observed span
+        f[..., 7] = 1.0                        # has (s,r) history
+        f[..., 8] = math.log1p(count)          # (s,.,o) count
+        f[..., 9] = torch.log1p(dt)            # (s,.,o) recency
         rels = torch.tensor([rel_id], device=device)
         ids = torch.full((1, P), ent_id, device=device, dtype=torch.long)
         return self.recurrence(rels, ids, f)[0]

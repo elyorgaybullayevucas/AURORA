@@ -75,15 +75,33 @@ for kw in [{}, {"rec_off": True}, {"struct_off": True}, {"phase_off": True}]:
     else:
         assert ev > 0, f"{tag}: evolver frozen"
 
-# ── kernel can be non-monotone ──────────────────────────────────────────────
+# ── the recurrence intensity is not confined to be monotone in dt ───────────
+# The published form is monotone by construction; a sign change here is what
+# places this model outside that family. Weights are perturbed so the test
+# measures reachability, not what an untrained net happens to output.
 m = KAIROS(NE, NR, cfg)
-torch.nn.init.normal_(m.w_head.weight, std=0.8)
-torch.nn.init.normal_(m.w_head.bias, std=0.8)
-ph = np.linspace(0, 10, 80)
-c = m.kernel(0, 1, ph, torch.device("cpu")).numpy()
+torch.nn.init.normal_(m.rec_head.weight, std=0.8)
+torch.nn.init.normal_(m.rec_head.bias, std=0.8)
+for layer in m.trunk:
+    if isinstance(layer, torch.nn.Linear):
+        torch.nn.init.normal_(layer.weight, std=0.5)
+dts = np.linspace(0, 40, 80)
+c = m.kernel(0, 1, dts, torch.device("cpu")).numpy()
 sc = int((np.diff(np.sign(np.diff(c))) != 0).sum())
-print(f"kernel sign changes={sc} (exp decay = 0), peak phase={ph[c.argmax()]:.2f}")
-assert sc >= 1
+print(f"recurrence intensity sign changes over dt = {sc} "
+      f"(published form = 0 by construction)")
+assert sc >= 1, "intensity is monotone in dt; it is inside the published family"
+
+# and the model must no longer read the phase inputs at all
+mp = KAIROS(NE, NR, cfg); mp.eval()
+f0 = torch.rand(1, 12, N_FEAT)
+r0 = torch.tensor([0]); i0 = torch.zeros(1, 12, dtype=torch.long)
+f1 = f0.clone(); f1[..., 5] = 9.9; f1[..., 11] = 9.9; f1[..., 15] = 9.9
+with torch.no_grad():
+    same = torch.allclose(mp.recurrence(r0, i0, f0),
+                          mp.recurrence(r0, i0, f1), atol=1e-6)
+assert same, "phase inputs still reach the recurrence branch"
+print("phase inputs are not read by the model OK")
 
 # ── blocked-mask matches a direct reference ─────────────────────────────────
 from train_kairos import strata
@@ -236,13 +254,17 @@ print(f"phase_off: max decrease of score as count grows = {dec:.3e} "
       f"(must be <= 0)")
 assert dec <= 1e-5, "--phase_off is not non-decreasing in count"
 
-# and the full model must NOT be monotone -- otherwise there is no claim
+# and the full model must NOT be confined to be monotone -- otherwise the
+# ablation removes nothing and there is no claim to test
 mf = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0})); mf.eval()
-torch.nn.init.normal_(mf.w_head.weight, std=0.8)
-torch.nn.init.normal_(mf.w_head.bias, std=0.8)
+torch.nn.init.normal_(mf.rec_head.weight, std=0.8)
+for layer in mf.trunk:
+    if isinstance(layer, torch.nn.Linear):
+        torch.nn.init.normal_(layer.weight, std=0.5)
 with torch.no_grad():
     scf = mf.recurrence(rl, ids, feat)[0]
-assert (scf[1:] - scf[:-1]).max().item() > 1e-4,     "full model is monotone in dt; the phase basis is doing nothing"
+assert (scf[1:] - scf[:-1]).max().item() > 1e-4, \
+    "full model is monotone in dt; the ablation restricts nothing"
 print("ablation is a real restriction OK")
 
 # ── tie-aware ranking ───────────────────────────────────────────────────────

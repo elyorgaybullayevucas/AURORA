@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-KAIROS — training and evaluation.
+CADENCE — training and evaluation.
 
     python train_kairos.py --dataset ICEWS18 --gpu 2
     python train_kairos.py --dataset GDELT   --gpu 4
@@ -8,7 +8,8 @@ KAIROS — training and evaluation.
 Ablations:
     --rec_off      structural intensity only
     --struct_off   recurrence intensity only
-    --phase_off    recurrence without the phase basis (monotone-only kernel)
+    --phase_off    recurrence restricted to the published monotone form,
+                   f(count) * exp(-lambda * dt), predicted from (r, o)
 
 Every run reports THREE evaluation protocols, because published numbers are
 not comparable across them:
@@ -16,8 +17,8 @@ not comparable across them:
     time-aware filtered  filter other true answers at the query timestamp
     time-unaware filter  filter every object ever seen for (s, r)
 RE-GCN / TiRGN / CENET report time-aware filtered; GAttNHP reports raw.
-It also reports metrics split by whether a query is MONOTONE-BLOCKED, which
-is where the contribution predicts the gain must appear.
+It also reports metrics split by whether a query is MONOTONE-BLOCKED:
+the stratum no scorer of the published form can order correctly.
 """
 import os, time, json, random, argparse
 import numpy as np
@@ -36,7 +37,7 @@ from kairos.model import KAIROS
 
 BANNER = r"""
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║  KAIROS — phase-conditioned recurrence for TKG forecasting                ║
+║  CADENCE — recurrence intensity from full inter-arrival statistics        ║
 ╠═══════════════════════════════════════════════════════════════════════════╣
 ║  λ(o) = λ_struct(o | G_<t, s, r)  +  λ_rec(o | H_o, s, r)                 ║
 ║  superposition ⇒ logaddexp, not a sum of logits; no gate to collapse      ║
@@ -45,8 +46,8 @@ BANNER = r"""
 ║  (CyGNet, CENET, TiRGN, RE-GCN, DaeMon; GAttNHP learns γ but keeps exp)   ║
 ║  ⇒ a distractor with smaller Δt and larger count can never be outranked   ║
 ║                                                                           ║
-║  λ_rec = Σ_j w_j(r,o,φ)·κ_j(Δt / mean_gap),  w_j ≥ 0                      ║
-║  non-monotone in Δt ⇒ those queries become reachable                      ║
+║  λ_rec = learned over 13 inter-arrival statistics, not just (count, Δt)   ║
+║  --phase_off restores the published two-feature monotone form             ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
 """
 
@@ -297,7 +298,6 @@ def main():
     variant = ("structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
                "monotone-kernel" if cfg.phase_off else
-               "no-phase-feature" if cfg.phase_feat_off else
                "full+path" if not cfg.path_off else "full")
     print(BANNER)
     print(f"  dataset={cfg.dataset}  variant={variant}  d={cfg.embed_dim}  "
@@ -525,13 +525,13 @@ def main():
 
     if not cfg.rec_off:
         try:
-            ph = np.linspace(0.0, 10.0, 100)
+            ph = np.linspace(0.0, 40.0, 100)
             curves = {f"rel_{r}": model.kernel(r, 0, ph, device)
                       .float().cpu().numpy().tolist()
                       for r in range(min(8, data.num_relations))}
             with open(os.path.join(cfg.save_dir, f"{name}_kernel.json"),
                       "w") as f:
-                json.dump({"phase": ph.tolist(), "curves": curves}, f, indent=2)
+                json.dump({"dt": ph.tolist(), "curves": curves}, f, indent=2)
             print(f"  learned kernels → {cfg.save_dir}/{name}_kernel.json")
         except Exception as e:
             print(f"  [warn] kernel export failed: {e}")
