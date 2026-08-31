@@ -35,13 +35,15 @@ Intensities for Temporal Knowledge Graph Forecasting}
 Recurrence dominates temporal knowledge graph (TKG) forecasting: a plain
 recurrency baseline matches RE-GCN, CyGNet, TiRGN and L2-TKG on the standard
 benchmarks. Every recurrence mechanism in this literature scores a historical
-candidate with $f(\mathrm{count})\cdot g(\Delta t)$ for some non-increasing
-$g$, including the exponential kernel of the recent neural-Hawkes model
-GAttNHP, which learns the decay rate but keeps the form. We show that this
-family is provably unable to rank a large and directly measurable share of
-queries: whenever a distractor has both smaller elapsed time and larger count
-than the answer, no non-increasing $g$ and no non-decreasing $f$ can place the
-answer first. We call such queries \emph{monotone-blocked}, note that the
+candidate by a function of how often it occurred and how long ago, which is
+non-decreasing in the first and non-increasing in the second --- whether the
+two are multiplied, as in the copy and decay terms of CyGNet, CENET, TiRGN,
+RE-GCN and DaeMon and in the learned exponential kernel of the neural-Hawkes
+model GAttNHP, or added, as in the rule confidences of CountTRuCoLa. We show
+that this entire family is provably unable to rank a large and directly
+measurable share of queries: whenever a distractor has both smaller elapsed
+time and larger count than the answer, no such scorer can place the answer
+first, however its parameters are fitted. We call such queries \emph{monotone-blocked}, note that the
 property is defined without reference to any model, and measure it at
 $41.6\%$ of YAGO, $29.3\%$ of WIKI, $26.6\%$ of ICEWS18 and $15.8\%$ of GDELT
 test queries. We then introduce \textsc{Cadence}, which abandons the
@@ -88,20 +90,21 @@ process and learns a per-entity decay rate.
 
 The interesting question is therefore not whether to model repetition, but
 what the models we already have \emph{cannot express}. Read as scorers, all of
-the above assign a historical candidate $o$ a value of the form
-$f(c_o)\,g(\Delta t_o)$ --- a non-decreasing function of how often the fact
-occurred, times a non-increasing function of how long ago it last occurred.
-The parameterisations differ, and GAttNHP fits the decay rate rather than
-fixing it, but the shape is common to all of them, and it is the shape that
-binds.
+the above assign a historical candidate $o$ a value determined by two
+quantities --- how often the fact occurred, $c_o$, and how long ago it last
+occurred, $\Delta t_o$ --- through a function that rises in the first and falls
+in the second. Most of them multiply a count term by a decay term; the recent
+rule-learning method CountTRuCoLa~\cite{counttrucola} adds them instead. The
+parameterisations differ, and GAttNHP fits the decay rate rather than fixing
+it, but that shared monotonicity is common to all of them, and it is the
+monotonicity that binds.
 
 This paper's starting point is that the shape has a blind spot which is
 provable in one line and, more importantly, is \emph{measurable without
 reference to any model}. If some distractor occurred both more often and more
-recently than the true answer, then no non-decreasing $f$, no non-increasing
-$g$, and no fitted decay rate whatsoever can rank the answer above it: both
-factors of the product already favour the distractor
-(Proposition~\ref{prop:blocked}). We call such a query \emph{monotone-blocked}.
+recently than the true answer, then no scorer with that monotonicity can rank
+the answer above it, whatever its parameters: both of the quantities it reads
+already favour the distractor (Proposition~\ref{prop:blocked}). We call such a query \emph{monotone-blocked}.
 The definition mentions only the query and the observed histories of its
 candidates, so the share of blocked queries is a property of a dataset rather
 than of a system, and it can be counted directly. On the four standard
@@ -166,37 +169,73 @@ reporting anything (Section~\ref{sec:protocol}).
 \label{sec:related}
 
 \paragraph{Recurrence and copy mechanisms}
-CyGNet, CENET, TiRGN, RE-GCN and DaeMon all score historical candidates by
-frequency weighted by exponential decay; CENET adds an explicit
-historical/non-historical oracle trained with a contrastive objective. All are
-instances of $f(\mathrm{count})\cdot g(\Delta t)$.
+CyGNet~\cite{cygnet} scores candidates from a copy vector of frequencies over
+the observed history. CENET~\cite{cenet} pairs a frequency scorer with an
+explicit historical / non-historical oracle trained contrastively.
+TiRGN~\cite{tirgn} and RE-GCN~\cite{regcn} attach a history vector to a
+recurrent structural encoder, and DaeMon~\cite{daemon} carries one alongside
+path evidence. Gastinger et al.~\cite{historyrepeats} showed that a baseline
+consisting of nothing but such a term is competitive with eleven published
+methods on five datasets, which is the empirical fact this paper starts from.
+All of these score a candidate by a quantity that rises with the count and
+falls with the elapsed time, so all fall under
+Proposition~\ref{prop:blocked}.
+
+\paragraph{Rule-based forecasting}
+TLogic-style rule induction and, most recently,
+CountTRuCoLa~\cite{counttrucola} learn interpretable temporal rules whose
+confidence is fitted per rule. CountTRuCoLa is the closest published work to
+our diagnosis, because it also treats the shape of the recency response as the
+object to be learned rather than fixed. It differs in two ways that matter
+here. Its confidence \emph{adds} a recency term to a frequency term instead of
+multiplying them, which is why we state
+Proposition~\ref{prop:blocked} at the level of monotonicity rather than for
+products; and its recency term is an exponential in the elapsed time with a
+fitted rate, so the learned object stays inside the monotone family. It is
+also the strongest published result we are aware of on GDELT under the
+time-aware filtered protocol, and we include it in
+Table~\ref{tab:main}.
 
 \paragraph{Point processes for TKG}
-GAttNHP casts TKG extrapolation as a neural Hawkes process with base, self-
-and group-excitation, but its kernel is $\exp(-\gamma_u \Delta t)$ with a
-learned per-entity rate. It is therefore inside the family constrained by
-Proposition~\ref{prop:blocked}. Our contribution is orthogonal to the
-point-process framing itself and concerns the shape of the kernel.
+GAttNHP~\cite{gattnhp} casts TKG extrapolation as a neural Hawkes process with
+base, self- and group-excitation, but its kernel is $\exp(-\gamma_u \Delta t)$
+with a learned per-entity rate, and is therefore inside the constrained family.
+We adopt the point-process reading itself --- it is what dictates our
+superposition rule~\cite{daleyvere} --- and claim no novelty for it; our
+contribution concerns the shape of the kernel.
 
 \paragraph{Structural encoders}
-RE-GCN evolves entity representations over snapshots with an R-GCN and a GRU.
-DiMNet adds cross-time perception at equal hop depth and disentangles node
-features into active and stable factors; its ablation attributes $-11.38$ MRR
-to disentanglement, $-9.62$ to virtual-subgraph refinement and $-4.97$ to
-multi-span. \emph{We adopt multi-span evolution and active/stable
-disentanglement as backbone and claim no novelty for them.}
+RE-GCN~\cite{regcn} evolves entity representations over snapshots with an
+R-GCN and a GRU. XERTE~\cite{xerte} and TITer~\cite{titer} instead search an
+explicit subgraph or trajectory. DiMNet~\cite{dimnet} adds cross-time
+perception at equal hop depth and disentangles node features into active and
+stable factors; its ablation attributes $-11.38$ MRR to disentanglement,
+$-9.62$ to virtual-subgraph refinement and $-4.97$ to multi-span.
+\emph{We adopt multi-span evolution and active/stable disentanglement as our
+backbone and claim no novelty for them}; our decoder is
+ConvTransE~\cite{convtranse}. Concurrent unrefereed work~\cite{est} proposes a
+persistent global entity-state buffer with fast and slow tracks, which is a
+more expressive version of the stability mechanism we inherit from DiMNet; its
+reported figures on ICEWS18 and GDELT are more than ten MRR points above every
+other number in this literature, including its own baselines, so we do not
+treat them as comparable to ours and do not tabulate them.
 
 \paragraph{Path-based reasoning}
-DaeMon carries an NBFNet-style query-conditioned state across snapshots with a
-time-aware gate and contains no entity embeddings, so a never-seen candidate
-is still scored on path evidence. We reimplement this as an optional third
-intensity and report it in Section~\ref{sec:negative} as a negative result at
-our scale.
+DaeMon~\cite{daemon} carries an NBFNet-style~\cite{nbfnet} query-conditioned
+state across snapshots with a time-aware gate and contains no entity
+embeddings, so a never-seen candidate is still scored on path evidence.
+TiPNN~\cite{tipnn} builds a query-aware history graph in the same spirit. We
+reimplement this as an optional third intensity and report it in
+Section~\ref{sec:negative} as a negative result at our scale.
 
 \paragraph{Evaluation protocol}
-Published numbers use three incompatible settings. RE-GCN, TiRGN, CENET,
-DaeMon, TiPNN and DiMNet report time-aware filtered; GAttNHP reports raw. We
-report all three and compare only within one.
+Published numbers use incompatible settings, and Gastinger et
+al.~\cite{gastingereval} showed that the choice alone moves results enough to
+reverse rankings between methods. RE-GCN, TiRGN, CENET, DaeMon, TiPNN, DiMNet
+and CountTRuCoLa report time-aware filtered; GAttNHP reports raw. We report all
+three settings, compare only within one, and additionally verify our
+implementation of the time-aware filter against the reference code
+(Section~\ref{sec:protocol}).
 
 \section{Preliminaries}
 \label{sec:prelim}
@@ -218,24 +257,56 @@ against $93.34$ for DaeMon.
 
 \subsection{Proposition}
 
+Published recurrence terms differ in how they put a count and an elapsed time
+together. Most multiply, $f(c)\,g(\Delta t)$; the recent rule-learning method
+CountTRuCoLa~\cite{counttrucola} instead \emph{adds} a recency term and a
+frequency term. Stating the bound for the product form alone would therefore
+leave an obvious escape, so we state it at the level of monotonicity, where no
+such escape exists.
+
 \begin{proposition}
 \label{prop:blocked}
-Let a scorer assign $s(o) = f(c_o)\,g(\Delta t_o)$ with $f$ non-decreasing,
-$g$ positive and non-increasing. Let $o^\star$ be the answer and $o$ a
-distractor with $\Delta t_o \le \Delta t_{o^\star}$ and
-$c_o \ge c_{o^\star}$. Then $s(o) \ge s(o^\star)$.
+Let a recurrence scorer be any function
+$s(o) = \psi(c_o, \Delta t_o)$ of the number of past occurrences $c_o$ of the
+candidate and the time $\Delta t_o$ since its last occurrence, such that
+$\psi$ is non-decreasing in its first argument and non-increasing in its
+second. Let $o^\star$ be the answer and let a distractor $o$ satisfy
+$c_o \ge c_{o^\star}$ and $\Delta t_o \le \Delta t_{o^\star}$. Then
+$s(o) \ge s(o^\star)$.
 \end{proposition}
 
 \begin{proof}
-$f(c_o) \ge f(c_{o^\star})$ since $f$ is non-decreasing, and
-$g(\Delta t_o) \ge g(\Delta t_{o^\star})$ since $g$ is non-increasing. Both
-factors are positive, so the product is at least as large.
+$\psi(c_o, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_o)$ by monotonicity in
+the first argument, and
+$\psi(c_{o^\star}, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_{o^\star})$ by
+monotonicity in the second. Chaining the two gives the claim.
 \end{proof}
 
-No choice of decay rate --- fixed, per-relation, or learned per entity as in
-GAttNHP --- and no reweighting of counts ranks $o^\star$ strictly first. We
-call such a query \emph{monotone-blocked}; the property involves only the
-query and its candidate history, and no model.
+The hypothesis is weak, which is the point. It asks only that seeing a fact
+more often does not lower its score and that seeing it longer ago does not
+raise it --- the two properties every recurrence mechanism in this literature
+is designed to have. It is satisfied by any product $f(c)\,g(\Delta t)$ with
+$f$ non-decreasing and $g$ positive and non-increasing, by any sum
+$f(c) + g(\Delta t)$ of the same, and more generally by $h(f(c), g(\Delta t))$
+for any $h$ non-decreasing in both arguments. It therefore covers the copy
+vector of CyGNet~\cite{cygnet}, the historical scorers of
+CENET~\cite{cenet}, TiRGN~\cite{tirgn}, RE-GCN~\cite{regcn} and
+DaeMon~\cite{daemon}, the additive rule confidences of
+CountTRuCoLa~\cite{counttrucola}, and the exponential kernel of
+GAttNHP~\cite{gattnhp} --- whose per-entity decay rate is learned, but learned
+inside the hypothesis. No choice of decay rate and no reweighting of counts
+ranks $o^\star$ strictly first.
+
+We call such a query \emph{monotone-blocked}. The definition involves only the
+query and the observed histories of its candidates, and no model, so it is a
+statistic of a dataset and can be computed before anything is trained.
+
+\paragraph{The two ways out}
+Proposition~\ref{prop:blocked} leaves exactly two escapes, and we take both. A
+scorer may fail to be monotone in the two arguments, or it may not be a
+function of those two arguments alone. The branch of
+Section~\ref{sec:method} reads thirteen statistics rather than two, and is
+unconstrained in all of them.
 
 \subsection{The rate is large}
 
@@ -407,26 +478,31 @@ to the reference and cannot be optimistic.
 \begin{table}[t]
 \centering
 \caption{Main results, time-aware filtered, $\times 100$, mean $\pm$ std over
-seeds. $^{\dagger}$ single seed, pending.}
+seeds. $^{\dagger}$ single seed, pending. CountTRuCoLa~\cite{counttrucola}
+reports MRR and Hits@10 only; we quote its MRR.}
 \label{tab:main}
 \begin{tabular}{llcccc}
 \toprule
 dataset & method & MRR & H@1 & H@3 & H@10 \\
 \midrule
-\multirow{2}{*}{YAGO}
- & DaeMon  & 91.59 & 90.03 & \textbf{93.00} & \textbf{93.34} \\
+\multirow{3}{*}{YAGO}
+ & DaeMon         & 91.59 & 90.03 & \textbf{93.00} & \textbf{93.34} \\
+ & CountTRuCoLa   & 90.9  & --    & --    & -- \\
  & \textsc{Cadence} & \textbf{91.64}\,$\pm$0.04 & \textbf{90.32}\,$\pm$0.08 & 92.88 & 93.08 \\
 \midrule
-\multirow{2}{*}{WIKI}
- & DaeMon  & 82.38 & 78.26 & \textbf{86.03} & \textbf{88.01} \\
+\multirow{3}{*}{WIKI}
+ & DaeMon         & 82.38 & 78.26 & \textbf{86.03} & \textbf{88.01} \\
+ & CountTRuCoLa   & 82.7  & --    & --    & -- \\
  & \textsc{Cadence} & \textbf{82.94}\,$\pm$0.15 & \textbf{79.84}\,$\pm$0.28 & 85.77 & 86.95 \\
 \midrule
-\multirow{2}{*}{ICEWS18}
- & DiMNet  & 34.13 & 23.29 & 38.42 & \textbf{55.80} \\
+\multirow{3}{*}{ICEWS18}
+ & DiMNet         & 34.13 & 23.29 & 38.42 & \textbf{55.80} \\
+ & CountTRuCoLa   & 32.8  & --    & --    & -- \\
  & \textsc{Cadence} & \textbf{34.59}\,$\pm$0.14 & \textbf{24.78}\,$\pm$0.11 & \textbf{39.06} & 53.55 \\
 \midrule
-\multirow{2}{*}{GDELT}
- & DiMNet  & 21.93 & 14.03 & 23.57 & 37.49 \\
+\multirow{3}{*}{GDELT}
+ & DiMNet         & 21.93 & 14.03 & 23.57 & 37.49 \\
+ & CountTRuCoLa   & 23.8  & --    & --    & -- \\
  & \textsc{Cadence}\pending{} & \textbf{26.34} & \textbf{17.59} & \textbf{29.07} & \textbf{43.44} \\
 \bottomrule
 \end{tabular}
