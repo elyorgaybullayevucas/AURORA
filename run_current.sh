@@ -23,6 +23,16 @@ launch () {           # launch <session> <dataset> <tag> [extra args...]
     echo "  [skip] $ses already exists"
     return
   fi
+  # A session name check is not enough. What must not be duplicated is the
+  # (dataset, tag) pair, because that is what names the checkpoint and the
+  # results json -- two trainings on the same pair overwrite each other's
+  # output. The running ICEWS18 job is in a session called qcond_I18, which
+  # no name check here would have matched.
+  if pgrep -fa "train_kairos.py" 2>/dev/null \
+       | grep -q -- "--dataset $ds .*--tag $tag\( \|$\)"; then
+    echo "  [skip] $ds --tag $tag is already training (different session name)"
+    return
+  fi
   echo "  [start] $ses   $ds  --tag $tag $*"
   tmux new -d -s "$ses" \
     "python train_kairos.py --dataset $ds --tag $tag $* 2>&1 | tee logs/$ses.out"
