@@ -1,154 +1,347 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 660" width="1060" height="660" font-family="Helvetica, Arial, sans-serif">
-  <defs>
-    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
-    </marker>
-    <marker id="arL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a6d3b"/>
-    </marker>
-    <style>
-      .lane   { fill:#fafafa; stroke:#d8d8d8; stroke-width:1; }
-      .laneA  { fill:#f4f8fb; stroke:#c8d8e4; }
-      .laneB  { fill:#fbf7f2; stroke:#e4d8c8; }
-      .box    { fill:#ffffff; stroke:#444; stroke-width:1.4; rx:4; }
-      .boxA   { fill:#eaf2f8; stroke:#3d6d94; stroke-width:1.4; rx:4; }
-      .boxB   { fill:#f8f0e6; stroke:#8a6d3b; stroke-width:1.4; rx:4; }
-      .boxOut { fill:#eeeeee; stroke:#222; stroke-width:1.8; rx:4; }
-      .snap   { fill:#ffffff; stroke:#777; stroke-width:1; rx:2; }
-      .t      { font-size:12.5px; fill:#111; }
-      .tb     { font-size:13px; fill:#111; font-weight:600; }
-      .ts     { font-size:10.5px; fill:#555; }
-      .tm     { font-size:11.5px; fill:#111; font-style:italic; }
-      .lane-l { font-size:11px; fill:#7a7a7a; font-weight:600; letter-spacing:1.2px; }
-      .arrow  { stroke:#333; stroke-width:1.4; fill:none; marker-end:url(#ar); }
-      .arrowL { stroke:#8a6d3b; stroke-width:1.4; fill:none; marker-end:url(#arL); }
-      .dash   { stroke:#999; stroke-width:1.1; fill:none; stroke-dasharray:4 3; }
-    </style>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1520 830" width="1520" height="830" font-family="Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#1f2a33"/></marker>
+  <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#1f2a33"/></marker>
+  <marker id="ae" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="#93b4d0"/></marker>
+  <style>
+    .ttl{font-size:15px;font-weight:700;fill:#111c25}
+    .sub{font-size:10.5px;fill:#6d7880}
+    .band{font-size:10px;font-weight:700;letter-spacing:1.3px}
+    .h{font-size:12px;font-weight:700;fill:#111c25}
+    .t{font-size:11px;fill:#1c262e}
+    .s{font-size:9.5px;fill:#6d7880}
+    .m{font-size:10.5px;font-style:italic;fill:#1c262e}
+    .nl{font-size:8px;fill:#fff;font-weight:700;text-anchor:middle}
+    .ar{stroke:#1f2a33;stroke-width:1.4;fill:none;marker-end:url(#a)}
+    .arT{stroke:#1f2a33;stroke-width:2.6;fill:none;marker-end:url(#ab)}
+    .eg{stroke:#93b4d0;stroke-width:1.1;fill:none;marker-end:url(#ae)}
+    .bx{fill:#fff;stroke:#3c4a55;stroke-width:1.3;rx:4}
+  </style>
 
-  <rect width="1060" height="660" fill="#ffffff"/>
+  <g id="snap">
+    <rect x="0" y="0" width="126" height="156" rx="12" fill="#fff" stroke="#b6c6d2"/>
+    <g class="eg">
+      <path d="M24 30 L70 56"/><path d="M24 30 L26 70"/><path d="M70 56 L92 34"/>
+      <path d="M70 56 L54 92"/><path d="M26 70 L54 92"/><path d="M26 70 L26 120"/>
+      <path d="M54 92 L96 122"/><path d="M26 120 L96 122"/><path d="M92 34 L96 122"/>
+    </g>
+    <path d="M24 30 L70 56 L54 92 L96 122" fill="none" stroke="#c0399b" stroke-width="1.6" stroke-dasharray="5 3"/>
+    <path d="M24 30 L26 70 L26 120 L96 122" fill="none" stroke="#e08a24" stroke-width="1.6" stroke-dasharray="5 3"/>
+    <circle cx="24" cy="30"  r="9" fill="#1d4e79"/><text class="nl" x="24" y="33">S</text>
+    <circle cx="92" cy="34"  r="8" fill="#a9c8e0"/><text class="nl" x="92" y="37" fill="#1d3448">B</text>
+    <circle cx="70" cy="56"  r="8" fill="#a9c8e0"/><text class="nl" x="70" y="59" fill="#1d3448">C</text>
+    <circle cx="26" cy="70"  r="8" fill="#a9c8e0"/><text class="nl" x="26" y="73" fill="#1d3448">D</text>
+    <circle cx="54" cy="92"  r="8" fill="#a9c8e0"/><text class="nl" x="54" y="95" fill="#1d3448">E</text>
+    <circle cx="26" cy="120" r="8" fill="#a9c8e0"/><text class="nl" x="26" y="123" fill="#1d3448">F</text>
+    <circle cx="96" cy="122" r="9" fill="#cf3b3b"/><text class="nl" x="96" y="125">O</text>
+  </g>
 
-  <!-- ══ lanes ══ -->
-  <rect class="lane laneA" x="24" y="56"  width="852" height="230" rx="6"/>
-  <rect class="lane laneB" x="24" y="330" width="852" height="248" rx="6"/>
-  <text class="lane-l" x="38" y="76">STRUCTURAL INTENSITY   λ_struct  ·  all N entities</text>
-  <text class="lane-l" x="38" y="350">RECURRENCE INTENSITY   λ_rec  ·  candidate set S only</text>
+  <g id="mat">
+    <g stroke="#7fa3c0" stroke-width="0.8">
+      <rect x="0"  y="0"  width="66" height="10" fill="#dfeaf4"/>
+      <rect x="0"  y="10" width="66" height="10" fill="#dfeaf4"/>
+      <rect x="0"  y="20" width="66" height="10" fill="#f0a0a0"/>
+      <rect x="0"  y="30" width="66" height="10" fill="#dfeaf4"/>
+      <rect x="0"  y="40" width="66" height="10" fill="#dfeaf4"/>
+      <rect x="0"  y="50" width="66" height="10" fill="#dfeaf4"/>
+      <path d="M13.2 0 V60 M26.4 0 V60 M39.6 0 V60 M52.8 0 V60"/>
+    </g>
+  </g>
+</defs>
+<rect width="1520" height="830" fill="#fff"/>
 
-  <!-- ══════════ STRUCTURAL LANE ══════════ -->
+<text class="ttl" x="26" y="28">CADENCE: superposing a structural intensity with a recurrence intensity built from full inter-arrival statistics</text>
+<text class="sub" x="26" y="45">d = 200 · 3 multi-span GCN layers · history H = 10 (5 on GDELT) · 5.96 M parameters · one batch = one timestamp</text>
 
-  <!-- snapshots -->
-  <text class="ts" x="44" y="100">history snapshots</text>
-  <rect class="snap" x="44"  y="110" width="30" height="58"/>
-  <rect class="snap" x="80"  y="110" width="30" height="58"/>
-  <rect class="snap" x="116" y="110" width="30" height="58"/>
-  <text class="t"    x="156" y="145">···</text>
-  <rect class="snap" x="180" y="110" width="30" height="58"/>
-  <text class="ts" x="40"  y="182">G(t−H)</text>
-  <text class="ts" x="176" y="182">G(t−1)</text>
+<!-- ══ TIME LINE ══ -->
+<text class="h" x="30" y="70">Time</text><text class="h" x="30" y="82">Line</text>
+<line x1="78" y1="72" x2="770" y2="72" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="m" x="96"  y="66">t₀</text>
+<text class="m" x="252" y="66">t₁</text>
+<text class="m" x="418" y="66">t_T</text>
+<text class="m" x="588" y="66">t_{T+1}</text>
 
-  <!-- evolver -->
-  <rect class="boxA" x="248" y="96" width="212" height="150"/>
-  <text class="tb" x="262" y="118">Evolver  (per snapshot)</text>
-  <rect class="box" x="262" y="128" width="184" height="34"/>
-  <text class="t"  x="272" y="144">multi-span GCN × 3</text>
-  <text class="ts" x="272" y="156">mean ‖ max  +  cross-time link</text>
-  <rect class="box" x="262" y="168" width="184" height="30"/>
-  <text class="t"  x="272" y="187">disentangle → active ‖ stable</text>
-  <rect class="box" x="262" y="204" width="184" height="30"/>
-  <text class="t"  x="272" y="223">GRU across snapshots</text>
+<!-- ══ BAND 1 : snapshots ══ -->
+<rect x="26" y="82" width="508" height="176" rx="10" fill="#eaf4ee" stroke="#c3ddd0"/>
+<text class="band" x="36" y="98" fill="#3d7a5b">TEMPORAL SNAPSHOTS</text>
+<use href="#snap" x="46"  y="94"/>
+<use href="#snap" x="200" y="94"/>
+<text class="h" x="348" y="176">···</text>
+<use href="#snap" x="382" y="94"/>
 
-  <!-- evolved table -->
-  <rect class="boxA" x="496" y="132" width="86" height="78"/>
-  <text class="tb" x="522" y="163">E(t)</text>
-  <text class="ts" x="506" y="180">evolved</text>
-  <text class="ts" x="506" y="193">N × d</text>
+<!-- ══ BAND 2 : evolver ══ -->
+<rect x="26" y="266" width="508" height="96" rx="10" fill="#fdf6e3" stroke="#e6d9b4"/>
+<text class="band" x="36" y="282" fill="#8a6d1f">EVOLVER   multi-span GCN + disentangler</text>
+<g>
+  <rect class="bx" x="46"  y="292" width="126" height="56"/>
+  <text class="h" x="60"  y="311">GCN ×3</text><text class="s" x="60"  y="325">mean ‖ max</text><text class="s" x="60" y="338">active ‖ stable</text>
+  <rect class="bx" x="200" y="292" width="126" height="56"/>
+  <text class="h" x="214" y="311">GCN ×3</text><text class="s" x="214" y="325">mean ‖ max</text><text class="s" x="214" y="338">active ‖ stable</text>
+  <text class="h" x="348" y="326">···</text>
+  <rect class="bx" x="382" y="292" width="126" height="56"/>
+  <text class="h" x="396" y="311">GCN ×3</text><text class="s" x="396" y="325">mean ‖ max</text><text class="s" x="396" y="338">active ‖ stable</text>
+</g>
+<path class="ar" d="M 109 254 L 109 288"/>
+<path class="ar" d="M 263 254 L 263 288"/>
+<path class="ar" d="M 445 254 L 445 288"/>
+<path d="M 176 320 C 190 320 190 320 196 320" class="ar"/>
+<path d="M 330 320 L 344 320" class="ar"/>
+<path d="M 358 320 L 378 320" class="ar"/>
 
-  <!-- decoder -->
-  <rect class="boxA" x="618" y="120" width="140" height="102"/>
-  <text class="tb" x="632" y="142">ConvTransE</text>
-  <text class="ts" x="632" y="160">[ E(t)[s] ‖ R[r] ]</text>
-  <text class="ts" x="632" y="176">conv → fc → LayerNorm</text>
-  <text class="ts" x="632" y="192">· E(t)ᵀ  + bias</text>
-  <text class="ts" x="632" y="212">LayerNorm, not BatchNorm</text>
+<!-- ══ BAND 3 : entity state ══ -->
+<rect x="26" y="370" width="508" height="140" rx="10" fill="#fdeeee" stroke="#f0cfcf"/>
+<text class="band" x="36" y="386" fill="#a54040">ENTITY STATE   E(t) ∈ ℝ^{N×d},   GRU-carried across t</text>
+<g>
+  <rect class="bx" x="46"  y="394" width="126" height="104"/>
+  <use href="#mat" x="70" y="412"/>
+  <circle cx="58" cy="437" r="5" fill="#cf3b3b"/>
+  <text class="s" x="70" y="490">E(t₀)</text>
+  <rect class="bx" x="200" y="394" width="126" height="104"/>
+  <use href="#mat" x="224" y="412"/>
+  <circle cx="212" cy="437" r="5" fill="#cf3b3b"/>
+  <text class="s" x="224" y="490">E(t₁)</text>
+  <text class="h" x="348" y="446">···</text>
+  <rect class="bx" x="382" y="394" width="126" height="104"/>
+  <use href="#mat" x="406" y="412"/>
+  <circle cx="394" cy="437" r="5" fill="#cf3b3b"/>
+  <text class="s" x="406" y="490">E(t_T)</text>
+</g>
+<path class="ar" d="M 109 352 L 109 390"/>
+<path class="ar" d="M 263 352 L 263 390"/>
+<path class="ar" d="M 445 352 L 445 390"/>
+<path class="ar" d="M 176 446 L 196 446"/>
+<text class="s" x="176" y="462">state</text><text class="s" x="176" y="473">passing</text>
+<path class="ar" d="M 330 446 L 344 446"/>
+<path class="ar" d="M 358 446 L 378 446"/>
+<path class="ar" d="M 132 500 C 132 522 100 522 100 502" stroke-dasharray="0"/>
 
-  <!-- f_struct -->
-  <rect class="boxOut" x="792" y="140" width="70" height="62"/>
-  <text class="tb" x="804" y="167">f_struct</text>
-  <text class="ts" x="812" y="184">(B, N)</text>
+<!-- ══ MIDDLE : query, legend, decoder ══ -->
+<rect x="548" y="82" width="222" height="428" rx="10" fill="#f7f9fb" stroke="#1f2a33" stroke-width="1.4" stroke-dasharray="7 4"/>
 
-  <!-- structural arrows -->
-  <path class="arrow" d="M 214 139 L 244 155"/>
-  <path class="arrow" d="M 462 171 L 492 171"/>
-  <path class="arrow" d="M 584 171 L 614 171"/>
-  <path class="arrow" d="M 760 171 L 788 171"/>
-  <path class="dash"  d="M 354 246 L 354 262 L 300 262 L 300 96" />
-  <text class="ts" x="308" y="258">state carried to next snapshot</text>
+<rect class="bx" x="566" y="98" width="90" height="46"/>
+<text class="h" x="578" y="118">Query</text>
+<text class="m" x="578" y="135">(s, r, ?)</text>
 
-  <!-- ══════════ RECURRENCE LANE ══════════ -->
+<rect x="672" y="98" width="84" height="102" rx="4" fill="#fff" stroke="#3c4a55" stroke-dasharray="4 3"/>
+<circle cx="686" cy="118" r="7" fill="#1d4e79"/><text class="s" x="700" y="121">subject s</text>
+<circle cx="686" cy="140" r="7" fill="#a9c8e0"/><text class="s" x="700" y="143">entity</text>
+<circle cx="686" cy="162" r="7" fill="#cf3b3b"/><text class="s" x="700" y="165">answer o★</text>
+<line x1="680" y1="182" x2="694" y2="182" stroke="#c0399b" stroke-width="1.6" stroke-dasharray="5 3"/>
+<text class="s" x="700" y="185">path</text>
 
-  <!-- candidate set -->
-  <rect class="boxB" x="44" y="374" width="186" height="118"/>
-  <text class="tb" x="56" y="396">candidate set  S</text>
-  <text class="t"  x="56" y="418">objects of (s, r)</text>
-  <text class="t"  x="56" y="436">∪  objects of (s, ·)</text>
-  <text class="t"  x="56" y="454">∪  top-K objects of r</text>
-  <text class="ts" x="56" y="476">capped at max_support</text>
+<rect class="bx" x="566" y="216" width="190" height="76"/>
+<text class="h" x="580" y="236">ConvTransE decoder</text>
+<text class="s" x="580" y="252">[ E(t_T)[s] ‖ R[r] ] → conv</text>
+<text class="s" x="580" y="266">→ fc → LayerNorm</text>
+<text class="s" x="580" y="281">· E(t_T)ᵀ + bias</text>
+<text class="s" x="580" y="304" fill="#a54040">LayerNorm, not BatchNorm: a batch is one</text>
+<text class="s" x="580" y="316" fill="#a54040">snapshot, so its size varies 72 – 4650</text>
 
-  <!-- features -->
-  <rect class="boxB" x="266" y="362" width="194" height="152"/>
-  <text class="tb" x="278" y="384">13 inter-arrival statistics</text>
-  <text class="ts" x="278" y="402">per candidate, three contexts</text>
-  <text class="t"  x="278" y="424">count,  Δt,  mean gap</text>
-  <text class="ts" x="278" y="440">for (s,r,o) · (s,·,o) · (r,·,o)</text>
-  <text class="t"  x="278" y="464">gap dispersion, span, rate</text>
-  <text class="ts" x="278" y="480">has-history flag</text>
-  <text class="ts" x="278" y="502">precomputed, no gradient</text>
+<text class="h" x="566" y="352">f_struct   over all N entities</text>
+<g fill="#4a7ba7">
+  <rect x="570" y="368" width="16" height="76"/><rect x="592" y="392" width="16" height="52"/>
+  <rect x="614" y="404" width="16" height="40"/><rect x="636" y="414" width="16" height="30"/>
+  <rect x="658" y="422" width="16" height="22"/><rect x="680" y="428" width="16" height="16"/>
+  <rect x="702" y="434" width="16" height="10"/>
+</g>
+<line x1="566" y1="444" x2="756" y2="444" stroke="#1f2a33" stroke-width="1.2"/>
+<text class="s" x="566" y="460">every entity is scored — no candidate restriction</text>
+<text class="s" x="566" y="474">this branch alone reaches 46.5 MRR on YAGO,</text>
+<text class="s" x="566" y="488">which is why the second branch is needed</text>
 
-  <!-- trunk -->
-  <rect class="boxB" x="496" y="374" width="180" height="118"/>
-  <text class="tb" x="508" y="396">MLP trunk</text>
-  <text class="ts" x="508" y="416">[ stats ‖ rel_ctx(r) ‖ ent_ctx(o) ]</text>
-  <text class="t"  x="508" y="440">2 × (Linear, LN, GELU)</text>
-  <text class="t"  x="508" y="462">→ scalar + rec_bias</text>
-  <text class="ts" x="508" y="482">not constrained monotone in Δt</text>
+<path class="arT" d="M 516 446 L 544 446"/>
+<path class="ar" d="M 660 148 L 660 212"/>
+<path class="ar" d="M 660 296 L 660 362"/>
 
-  <!-- f_rec -->
-  <rect class="boxOut" x="792" y="402" width="70" height="62"/>
-  <text class="tb" x="806" y="429">f_rec</text>
-  <text class="ts" x="800" y="446">(B, |S|)</text>
+<!-- ══ RIGHT : zoom on the recurrence unit ══ -->
+<rect x="790" y="82" width="702" height="490" rx="10" fill="#fdf9ef" stroke="#e0d0a8"/>
+<text class="h" x="806" y="104">Recurrence Intensity Unit   —   this paper's contribution, shown in full</text>
+<text class="s" x="806" y="119">λ_rec is a free function of thirteen inter-arrival statistics, not a decay in Δt alone</text>
 
-  <!-- recurrence arrows -->
-  <path class="arrowL" d="M 232 433 L 262 433"/>
-  <path class="arrowL" d="M 462 433 L 492 433"/>
-  <path class="arrowL" d="M 678 433 L 788 433"/>
+<!-- candidate set -->
+<rect class="bx" x="806" y="134" width="122" height="182"/>
+<text class="h" x="816" y="153">Candidate set S</text>
+<text class="s" x="816" y="167">objects of (s,r),</text>
+<text class="s" x="816" y="179">objects of (s,·),</text>
+<text class="s" x="816" y="191">top-K objects of r</text>
+<circle cx="822" cy="212" r="7" fill="#cf3b3b"/><text class="t" x="836" y="216">o★</text>
+<circle cx="822" cy="238" r="7" fill="#a9c8e0"/><text class="t" x="836" y="242">o′</text>
+<circle cx="822" cy="264" r="7" fill="#a9c8e0"/><text class="t" x="836" y="268">o₃</text>
+<circle cx="822" cy="290" r="7" fill="#a9c8e0"/><text class="t" x="836" y="294">o₄</text>
+<text class="s" x="866" y="216">answer</text>
+<text class="s" x="866" y="242">distractor</text>
 
-  <!-- ══════════ COMBINATION ══════════ -->
-  <circle cx="916" cy="290" r="21" fill="#fff" stroke="#222" stroke-width="1.8"/>
-  <text x="905" y="296" font-size="17" fill="#111">⊕</text>
-  <path class="arrow" d="M 866 171 L 916 171 L 916 266"/>
-  <path class="arrowL" d="M 866 433 L 916 433 L 916 314"/>
+<!-- timelines -->
+<rect class="bx" x="948" y="134" width="410" height="182"/>
+<text class="h" x="960" y="153">Observed occurrence history of each candidate</text>
+<line x1="1330" y1="160" x2="1330" y2="306" stroke="#cf3b3b" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text class="s" x="1300" y="172" fill="#cf3b3b">now = t</text>
+<g stroke="#8a6d1f" stroke-width="1">
+  <line x1="972" y1="206" x2="1328" y2="206"/><line x1="972" y1="238" x2="1328" y2="238"/>
+  <line x1="972" y1="266" x2="1328" y2="266"/><line x1="972" y1="294" x2="1328" y2="294"/>
+</g>
+<g fill="#cf3b3b">
+  <rect x="994"  y="198" width="3.4" height="16"/><rect x="1062" y="198" width="3.4" height="16"/>
+  <rect x="1130" y="198" width="3.4" height="16"/><rect x="1198" y="198" width="3.4" height="16"/>
+</g>
+<text class="t" x="960" y="210" fill="#cf3b3b">o★</text>
+<line x1="1204" y1="190" x2="1328" y2="190" stroke="#cf3b3b" stroke-width="0.9"/>
+<text class="s" x="1236" y="186" fill="#cf3b3b">Δt larger, count 4, gaps regular</text>
+<g fill="#1d4e79">
+  <rect x="1030" y="230" width="3.4" height="16"/><rect x="1042" y="230" width="3.4" height="16"/>
+  <rect x="1100" y="230" width="3.4" height="16"/><rect x="1112" y="230" width="3.4" height="16"/>
+  <rect x="1230" y="230" width="3.4" height="16"/><rect x="1296" y="230" width="3.4" height="16"/>
+</g>
+<text class="t" x="960" y="242" fill="#1d4e79">o′</text>
+<line x1="1302" y1="222" x2="1328" y2="222" stroke="#1d4e79" stroke-width="0.9"/>
+<text class="s" x="1170" y="218" fill="#1d4e79">Δt smaller, count 6, gaps bursty</text>
+<g fill="#8a6d1f">
+  <rect x="1016" y="258" width="3.4" height="16"/><rect x="1150" y="258" width="3.4" height="16"/>
+  <rect x="1252" y="258" width="3.4" height="16"/>
+  <rect x="1076" y="286" width="3.4" height="16"/><rect x="1266" y="286" width="3.4" height="16"/>
+</g>
+<text class="t" x="960" y="270">o₃</text>
+<text class="t" x="960" y="298">o₄</text>
+<path class="ar" d="M 932 226 L 944 226"/>
 
-  <rect class="boxOut" x="878" y="352" width="150" height="86"/>
-  <text class="tb" x="890" y="374">score(o)</text>
-  <text class="tm" x="890" y="396">logaddexp(f_struct, f_rec)</text>
-  <text class="ts" x="890" y="412">on S;  f_struct elsewhere</text>
-  <text class="ts" x="890" y="428">no gate — none to collapse</text>
-  <path class="arrow" d="M 940 312 L 940 348"/>
+<!-- proposition callout -->
+<rect x="1372" y="134" width="106" height="182" rx="6" fill="#fff" stroke="#cf3b3b" stroke-width="1.4"/>
+<text class="h" x="1382" y="154" fill="#cf3b3b">Proposition 1</text>
+<text class="s" x="1382" y="172">Any score of the</text>
+<text class="s" x="1382" y="184">form f(count)·g(Δt)</text>
+<text class="s" x="1382" y="196">with g non-increasing</text>
+<text class="s" x="1382" y="208">ranks o′ ≥ o★ here.</text>
+<text class="s" x="1382" y="226">No decay rate, and</text>
+<text class="s" x="1382" y="238">no learned g, escapes</text>
+<text class="s" x="1382" y="250">it — the ordering is</text>
+<text class="s" x="1382" y="262">fixed by the form.</text>
+<text class="s" x="1382" y="282" fill="#a54040">41.6 % of YAGO test</text>
+<text class="s" x="1382" y="294" fill="#a54040">queries are of this</text>
+<text class="s" x="1382" y="306" fill="#a54040">kind (GDELT 15.8 %).</text>
 
-  <!-- superposition note -->
-  <text class="tm" x="884" y="120">λ(o) = λ_struct(o) + λ_rec(o)</text>
-  <text class="ts" x="884" y="138">superposition adds intensities,</text>
-  <text class="ts" x="884" y="152">so log-space combination is</text>
-  <text class="ts" x="884" y="166">logaddexp, not a sum of logits</text>
+<!-- statistics matrix -->
+<rect class="bx" x="806" y="342" width="352" height="146"/>
+<text class="h" x="818" y="362">Thirteen statistics, read off the timelines</text>
+<text class="s" x="818" y="376">precomputed on a CSR index · no gradient · no entity ordering assumed</text>
+<g stroke="#a58a4a" stroke-width="0.8">
+  <g fill="#f5e9cf">
+    <rect x="880" y="390" width="20" height="16"/><rect x="900" y="390" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="920" y="390" width="20" height="16"/><rect x="940" y="390" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="960" y="390" width="20" height="16"/><rect x="980" y="390" width="20" height="16" fill="#dcc188"/>
+    <rect x="1000" y="390" width="20" height="16"/><rect x="1020" y="390" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="1040" y="390" width="20" height="16"/><rect x="1060" y="390" width="20" height="16" fill="#dcc188"/>
+    <rect x="1080" y="390" width="20" height="16"/><rect x="1100" y="390" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="1120" y="390" width="20" height="16"/>
+  </g>
+  <g fill="#f5e9cf">
+    <rect x="880" y="406" width="20" height="16" fill="#e9d4a3"/><rect x="900" y="406" width="20" height="16"/>
+    <rect x="920" y="406" width="20" height="16" fill="#dcc188"/><rect x="940" y="406" width="20" height="16"/>
+    <rect x="960" y="406" width="20" height="16" fill="#e9d4a3"/><rect x="980" y="406" width="20" height="16"/>
+    <rect x="1000" y="406" width="20" height="16" fill="#e9d4a3"/><rect x="1020" y="406" width="20" height="16"/>
+    <rect x="1040" y="406" width="20" height="16" fill="#dcc188"/><rect x="1060" y="406" width="20" height="16"/>
+    <rect x="1080" y="406" width="20" height="16" fill="#e9d4a3"/><rect x="1100" y="406" width="20" height="16"/>
+    <rect x="1120" y="406" width="20" height="16" fill="#e9d4a3"/>
+  </g>
+  <g fill="#f5e9cf">
+    <rect x="880" y="422" width="20" height="16"/><rect x="900" y="422" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="920" y="422" width="20" height="16"/><rect x="940" y="422" width="20" height="16" fill="#dcc188"/>
+    <rect x="960" y="422" width="20" height="16"/><rect x="980" y="422" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="1000" y="422" width="20" height="16" fill="#dcc188"/><rect x="1020" y="422" width="20" height="16"/>
+    <rect x="1040" y="422" width="20" height="16" fill="#e9d4a3"/><rect x="1060" y="422" width="20" height="16"/>
+    <rect x="1080" y="422" width="20" height="16"/><rect x="1100" y="422" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="1120" y="422" width="20" height="16"/>
+  </g>
+  <g fill="#f5e9cf">
+    <rect x="880" y="438" width="20" height="16" fill="#e9d4a3"/><rect x="900" y="438" width="20" height="16"/>
+    <rect x="920" y="438" width="20" height="16" fill="#e9d4a3"/><rect x="940" y="438" width="20" height="16"/>
+    <rect x="960" y="438" width="20" height="16" fill="#dcc188"/><rect x="980" y="438" width="20" height="16"/>
+    <rect x="1000" y="438" width="20" height="16" fill="#e9d4a3"/><rect x="1020" y="438" width="20" height="16" fill="#dcc188"/>
+    <rect x="1040" y="438" width="20" height="16"/><rect x="1060" y="438" width="20" height="16" fill="#e9d4a3"/>
+    <rect x="1080" y="438" width="20" height="16" fill="#dcc188"/><rect x="1100" y="438" width="20" height="16"/>
+    <rect x="1120" y="438" width="20" height="16" fill="#e9d4a3"/>
+  </g>
+</g>
+<text class="t" x="852" y="402" fill="#cf3b3b">o★</text>
+<text class="t" x="852" y="418" fill="#1d4e79">o′</text>
+<text class="t" x="856" y="434">o₃</text>
+<text class="t" x="856" y="450">o₄</text>
+<text class="s" x="880" y="466">count · Δt · mean gap  for (s,r,o), (s,·,o), (r,·,o)</text>
+<text class="s" x="880" y="478">+ gap dispersion · span · rate · has-history</text>
+<path class="ar" d="M 1000 322 L 1000 338"/>
 
-  <!-- ══════════ LOSS ══════════ -->
-  <rect class="box" x="24" y="600" width="1004" height="44" fill="#fcfcfc"/>
-  <text class="tb" x="40"  y="620">Training</text>
-  <text class="t"  x="40"  y="637">L = CE(score, o)  +  0.1 · stable-factor drift  +  struct_aux · CE(f_struct, o)</text>
-  <text class="ts" x="620" y="620">snapshot-batched: one batch = all queries at one timestamp</text>
-  <text class="ts" x="620" y="637">struct_aux = 0 on YAGO (measured: costs 0.87 MRR there)</text>
+<!-- MLP -->
+<rect class="bx" x="1186" y="342" width="140" height="94"/>
+<text class="h" x="1198" y="362">MLP trunk</text>
+<text class="s" x="1198" y="378">[ stats ‖ rel_ctx(r) ‖ ent_ctx(o) ]</text>
+<text class="s" x="1198" y="394">Linear → LN → GELU</text>
+<text class="s" x="1198" y="408">Linear → LN → GELU</text>
+<text class="s" x="1198" y="424">→ scalar + rec_bias</text>
+<text class="s" x="1186" y="454" fill="#a54040">unconstrained in Δt: the</text>
+<text class="s" x="1186" y="466" fill="#a54040">form Proposition 1 excludes</text>
+<path class="ar" d="M 1162 400 L 1182 400"/>
 
-  <!-- title -->
-  <text x="24" y="34" font-size="15.5" font-weight="700" fill="#111">CADENCE — recurrence intensity from full inter-arrival statistics</text>
-  <text x="24" y="50" class="ts">d = 200 · 3 GCN layers · history 10 snapshots (5 on GDELT) · 5.96 M parameters</text>
+<!-- f_rec -->
+<text class="h" x="1354" y="360">f_rec  on S</text>
+<g>
+  <rect x="1358" y="382" width="18" height="56" fill="#cf3b3b"/>
+  <rect x="1382" y="398" width="18" height="40" fill="#7a9cbb"/>
+  <rect x="1406" y="410" width="18" height="28" fill="#7a9cbb"/>
+  <rect x="1430" y="420" width="18" height="18" fill="#7a9cbb"/>
+</g>
+<line x1="1354" y1="438" x2="1456" y2="438" stroke="#1f2a33" stroke-width="1.2"/>
+<text class="s" x="1354" y="452">o★   o′   o₃   o₄</text>
+<text class="s" x="1354" y="470" fill="#a54040">the blocked pair is reordered</text>
+<path class="ar" d="M 1330 400 L 1350 400"/>
+
+<text class="s" x="806" y="510">Ablation to a monotone kernel  log a + p·log1p(count) − b·Δt,  everything else held fixed:</text>
+<text class="s" x="806" y="524">MRR falls  91.64 → 89.81 (YAGO),  82.99 → 74.83 (WIKI),  34.77 → 29.20 (ICEWS18),  26.27 → 21.77 (GDELT).</text>
+<text class="s" x="806" y="544" fill="#a54040">Reported honestly: blanking the phase feature alone changes blocked-stratum H@1 by less than 0.6 on every dataset,</text>
+<text class="s" x="806" y="558" fill="#a54040">so the gain comes from the unconstrained functional form, not from any single engineered signal. Phase was removed.</text>
+
+<!-- ══ COMBINE ══ -->
+<rect x="26" y="596" width="1466" height="212" rx="10" fill="#f4f7f9" stroke="#cfd8de"/>
+<text class="band" x="40" y="616" fill="#3c4a55">SUPERPOSITION AND TRAINING</text>
+
+<circle cx="120" cy="686" r="26" fill="#fff" stroke="#1f2a33" stroke-width="2.2"/>
+<text x="107" y="694" font-size="21" fill="#111c25">⊕</text>
+<path class="arT" d="M 660 500 L 660 560 L 120 560 L 120 656"/>
+<text class="t" x="672" y="556">f_struct</text>
+<path class="arT" d="M 1140 580 L 1140 640 L 152 640 L 152 668"/>
+<text class="t" x="1152" y="576">f_rec</text>
+
+<rect class="bx" x="180" y="640" width="352" height="94"/>
+<text class="h" x="194" y="662">score(o) = log λ(o)</text>
+<text class="m" x="194" y="684">= logaddexp( f_struct(o), f_rec(o) )  on S</text>
+<text class="m" x="194" y="702">= f_struct(o)                        elsewhere</text>
+<text class="s" x="194" y="722">superposing point processes adds intensities, so the branches are combined in log-space</text>
+
+<rect class="bx" x="560" y="640" width="330" height="94"/>
+<text class="h" x="574" y="662">No mixing gate</text>
+<text class="s" x="574" y="680">There is no learned weight between the two</text>
+<text class="s" x="574" y="694">branches, so there is no gate that can collapse</text>
+<text class="s" x="574" y="708">onto one of them during training — a failure</text>
+<text class="s" x="574" y="722">mode reported for gated two-branch TKG models.</text>
+
+<rect class="bx" x="918" y="640" width="380" height="94"/>
+<text class="h" x="932" y="662">Objective</text>
+<text class="m" x="932" y="682">L = CE(score, o) + 0.1·drift(stable) + α·CE(f_struct, o)</text>
+<text class="s" x="932" y="700">α = 0 on YAGO — measured, deep supervision costs 0.87 MRR there</text>
+<text class="s" x="932" y="714">and raises the seed std from 0.04 to 0.42;  α = 0.3 elsewhere.</text>
+
+<text class="h" x="1326" y="662">Ranked prediction</text>
+<g>
+  <rect x="1330" y="682" width="16" height="42" fill="#cf3b3b"/>
+  <rect x="1352" y="694" width="16" height="30" fill="#4a7ba7"/>
+  <rect x="1374" y="702" width="16" height="22" fill="#7a9cbb"/>
+  <rect x="1396" y="710" width="16" height="14" fill="#a9c8e0"/>
+  <rect x="1418" y="716" width="16" height="8"  fill="#c8dcea"/>
+</g>
+<line x1="1326" y1="724" x2="1450" y2="724" stroke="#1f2a33" stroke-width="1.2"/>
+<text class="s" x="1326" y="740">time-aware filtered · ties at their average position</text>
+
+<text class="s" x="40" y="770">Evaluation protocol verified against the RE-GCN reference implementation on all four datasets: zero filter disagreements over 4 000 sampled queries each.</text>
+<text class="s" x="40" y="786">Results (MRR / H@1 ×100): YAGO 91.64 / 90.37 · WIKI 82.99 / 79.80 · ICEWS18 34.77 / 24.93 · GDELT 26.27 / 17.53.</text>
 </svg>

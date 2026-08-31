@@ -1,4 +1,4 @@
-%% KAIROS — phase-conditioned recurrence for TKG forecasting
+%% CADENCE — unconstrained recurrence intensities for TKG forecasting
 %% IEEEtran (ICDE / general IEEE conference). For IJCAI switch to ijcai.sty.
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
@@ -10,6 +10,12 @@
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
+%% Overleaf has Inkscape installed, so \includesvg works there directly and the
+%% figure stays vector. If you compile locally without Inkscape, either run
+%%   inkscape architecture.svg --export-filename=architecture.pdf
+%% and swap \includesvg for \includegraphics, or compile with -shell-escape.
+\usepackage{svg}
+\svgsetup{inkscapelatex=false}
 
 \newtheorem{proposition}{Proposition}
 \newcommand{\todo}[1]{\textcolor{red}{[#1]}}
@@ -17,8 +23,8 @@
 
 \begin{document}
 
-\title{When Is a Fact Due? Phase-Conditioned Recurrence\\
-for Temporal Knowledge Graph Forecasting}
+\title{Beyond Monotone Decay: Unconstrained Recurrence\\
+Intensities for Temporal Knowledge Graph Forecasting}
 
 \author{\IEEEauthorblockN{Anonymous}
 \IEEEauthorblockA{\textit{Institution} \\ \textit{Address} \\ email}}
@@ -38,18 +44,19 @@ than the answer, no non-increasing $g$ and no non-decreasing $f$ can place the
 answer first. We call such queries \emph{monotone-blocked}, note that the
 property is defined without reference to any model, and measure it at
 $41.6\%$ of YAGO, $29.3\%$ of WIKI, $26.6\%$ of ICEWS18 and $15.8\%$ of GDELT
-test queries. The same measurement explains where the blind spot bites:
-writing \emph{phase} as $\Delta t$ divided by the mean inter-arrival gap, the
-median phase of the true answer on YAGO and WIKI is exactly $1.000$, with
-$94.0\%$ and $84.8\%$ of answers in $[0.5,1.5]$. Facts recur at their own
-average waiting time, while a monotone kernel is maximal at phase
-$\rightarrow 0$. We introduce \textsc{Kairos}, which replaces the fixed decay
-with a learned conditional intensity over phase --- a non-negative mixture
-over a radial basis, non-monotone in $\Delta t$ by construction --- superposed
-with a structural intensity through the log-sum-exp of a point-process
-superposition rather than through a gate. \textsc{Kairos} exceeds the
-published state of the art on all four benchmarks under the time-aware
-filtered protocol, which we verify against the reference implementation.
+test queries. We then introduce \textsc{Cadence}, which abandons the
+product form altogether: its recurrence branch is an unconstrained function of
+thirteen inter-arrival statistics of a candidate's observed history, so it is
+neither monotone in $\Delta t$ nor separable in the count, and it recovers the
+classical exponential kernel as one point in its hypothesis space. The two
+branches are combined as what they are --- intensities of superposed point
+processes --- through a log-sum-exp rather than a learned gate, which removes
+the branch collapse we observed with gating. Restricting the branch to the
+published monotone form while holding everything else fixed costs $1.83$,
+$8.11$, $5.39$ and $4.57$ MRR on the four benchmarks, so the functional form,
+not the backbone, carries the gain. \textsc{Cadence} exceeds the published
+state of the art on all four benchmarks under the time-aware filtered
+protocol, which we verify against the reference implementation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -68,12 +75,15 @@ recurrence
         recurrence models cannot express.
   \item They share one functional form, and that form has a blind spot that
         is provable and whose size is measurable from the data alone.
-  \item The blind spot covers $15.8$--$41.6\%$ of test queries, and on two
-        datasets the data concentrates exactly where the form is blind.
-  \item Contributions: the proposition and the diagnostic; the measured phase
-        distribution; the \textsc{Kairos} intensity; results on four
-        benchmarks with a verified protocol; a stratified evaluation that
-        tests the mechanism rather than the metric.
+  \item The blind spot covers $15.8$--$41.6\%$ of test queries, so it is not a
+        corner case that a structural branch can be assumed to absorb.
+  \item Contributions: Proposition~\ref{prop:blocked} and the model-free
+        diagnostic it induces; the \textsc{Cadence} recurrence intensity, which
+        strictly contains the family the proposition constrains; a
+        superposition rule that follows from the point-process reading and
+        admits no gate; results on four benchmarks under a protocol verified
+        against the reference implementation; and a stratified evaluation that
+        tests the mechanism rather than only the headline metric.
 \end{enumerate}
 
 \section{Related Work}
@@ -177,41 +187,50 @@ is not subject to it and can rescue a blocked query. What
 Table~\ref{tab:blocked} establishes is that on $15.8$--$41.6\%$ of queries the
 recurrence component cannot produce the correct ordering and must delegate.
 
-\subsection{Facts recur at their own mean gap}
+\subsection{Two regimes}
 
-Define phase $p_o = \Delta t_o / \overline{g}_o$, where $\overline{g}_o$ is the
-mean inter-arrival gap of candidate $o$.
+Table~\ref{tab:blocked} separates the benchmarks into two regimes, and the rest
+of the paper is read against that split. On YAGO and WIKI almost every answer
+has a history ($92.8\%$, $87.0\%$), so recurrence is where the task is decided
+and the blocked share of \emph{all} queries is correspondingly large. On
+ICEWS18 and GDELT most answers have no history at all ($47.7\%$ and $24.9\%$
+do), so the blocked share of all queries is smaller --- but conditional on
+having a history it is \emph{higher}, $55.7\%$ and $63.4\%$. The blind spot is
+therefore not confined to the slowly-evolving datasets; on the event datasets
+it is denser, over a smaller pool. Section~\ref{sec:strat} evaluates on these
+strata separately rather than reporting only the pooled metric.
 
-\begin{table}[t]
-\centering
-\caption{Phase of the true answer.}
-\label{tab:phase}
-\begin{tabular}{lcccc}
-\toprule
-dataset & $p<0.5$ & $0.5\le p\le 1.5$ & $p>2$ & median \\
-\midrule
-YAGO    & 6.0\%  & \textbf{94.0\%} & 0.0\%  & \textbf{1.000} \\
-WIKI    & 12.1\% & \textbf{84.8\%} & 1.3\%  & \textbf{1.000} \\
-ICEWS18 & 56.9\% & 19.6\%          & 19.1\% & 0.312 \\
-GDELT   & 52.8\% & 20.0\%          & 22.1\% & 0.407 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-On YAGO and WIKI the median is exactly one: a fact recurs after about its own
-average waiting time. A monotone $g$ is maximal at $p \rightarrow 0$ and so
-systematically prefers a candidate that fired recently over one that is
-\emph{due}. ICEWS18 and GDELT are a different regime, and
-Section~\ref{sec:strat} finds the mechanism behaves differently there, as this
-table predicts.
-
-\section{\textsc{Kairos}}
+\section{\textsc{Cadence}}
 \label{sec:method}
+
+\begin{figure*}[t]
+\centering
+\includesvg[width=\textwidth]{architecture}
+\caption{Overview of the model. \emph{Left}: the structural branch. Each
+historical snapshot $\mathcal{G}(t_i)$ is passed through three multi-span GCN
+layers whose message at depth $\ell$ also reads depth $\ell$ at $t_{i-1}$, is
+disentangled into an active and a stable factor, and is carried across time by a
+GRU, giving the evolved entity table $E(t)$. A ConvTransE decoder scores every
+entity against $[E(t)[s]\,\|\,R[r]]$. \emph{Right}: the recurrence branch, drawn
+in full because it is where the contribution lies. For each candidate $o$ we read
+its observed occurrence history off a precomputed CSR index and summarise it by
+thirteen inter-arrival statistics, which an unconstrained MLP maps to a scalar.
+The two timelines $o^{\star}$ and $o'$ are the configuration of
+Proposition~\ref{prop:blocked}: the distractor has both the smaller $\Delta t$
+and the larger count, so every score of the form $f(\text{count})\cdot g(\Delta
+t)$ with $g$ non-increasing ranks it at least as high as the answer, whatever
+decay rate is fitted. \emph{Bottom}: the branches are point-process intensities,
+so they are superposed by $\log\lambda = \mathrm{logaddexp}(f_{\mathrm{struct}},
+f_{\mathrm{rec}})$ on the candidate set and by $f_{\mathrm{struct}}$ elsewhere.
+No mixing weight is learned, so there is no gate that can collapse onto one
+branch.}
+\label{fig:arch}
+\end{figure*}
 
 \subsection{Superposition, not gating}
 
-A query is a draw from a superposition of two marked point processes on the
-entity space,
+Fig.~\ref{fig:arch} gives the whole model. A query is a draw from a
+superposition of two marked point processes on the entity space,
 \begin{equation}
 \lambda(o) = \lambda_{\mathrm{struct}}(o \mid \mathcal{G}_{<t}, s, r)
            + \lambda_{\mathrm{rec}}(o \mid \mathcal{H}_o, s, r).
@@ -235,19 +254,33 @@ gate collapsed to a single branch within a few epochs.
 
 \subsection{The recurrence intensity}
 
+The proposition constrains a functional \emph{form}, not a parameterisation, so
+no amount of fitting inside that form escapes it. We therefore leave the form.
+For a candidate $o$ we summarise its observed history by a vector
+$\phi_o \in \mathbb{R}^{13}$ and set
 \begin{equation}
 \log \lambda_{\mathrm{rec}}(o) =
-\log \sum_{j} w_j(r, o, \phi_o)\, \kappa_j(p_o) + b,
-\qquad w_j \ge 0,
+\mathrm{MLP}\bigl[\,\mathrm{LN}(\phi_o) \,\|\, u(r) \,\|\, v(o)\,\bigr] + b,
 \end{equation}
-where $\kappa_j$ is a fixed radial basis over phase with $15$ centres in
-$[0,13]$, applied to the $(s,r)$, $(s,\cdot)$ and $(r,\cdot)$ histories, and
-$w_j$ is predicted per candidate from $16$ interpretable temporal statistics
-together with the relation and entity embeddings, through a softplus so the
-mixture stays non-negative. Fitting $w_j$ to $\exp(-\lambda p)$ recovers the
-classical term, so every scorer in Proposition~\ref{prop:blocked} is a special
-case up to basis resolution; non-monotonicity in $\Delta t$ is by
-construction, which is what makes blocked queries reachable.
+where $u$ and $v$ are learned relation and entity contexts, the trunk is two
+Linear--LayerNorm--GELU blocks, and $b$ is a scalar initialised at $-2$.
+
+The thirteen statistics are the count, the elapsed time $\Delta t$ and the mean
+inter-arrival gap of each of the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$
+histories, together with the dispersion of the gaps, the span and rate of the
+$(s,r,o)$ history, and a binary has-history indicator. They are read from a
+compressed sparse-row temporal index built once per dataset and carry no
+gradient, so the branch adds no message passing to the backbone.
+
+Two properties matter. First, the family in
+Proposition~\ref{prop:blocked} is contained in this one: taking the MLP to
+compute $\log a + p\log(1+c) - b\,\Delta t$ recovers the classical
+count-times-decay scorer exactly, so we cannot lose by generalising, and
+Section~\ref{sec:mech} measures what we gain by doing so. Second, nothing
+forces the score to decrease in $\Delta t$ or to increase in the count, and it
+is a joint function of both together with seven further statistics --- so the
+blocked configuration of Proposition~\ref{prop:blocked} is reachable, which is
+precisely what the product form forbids.
 
 \subsection{Structural intensity}
 
@@ -267,7 +300,7 @@ otherwise depend on the split.
 Four benchmarks, time-aware filtered protocol, baselines quoted from the
 DaeMon table (YAGO, WIKI) and the DiMNet table (ICEWS18, GDELT), both of which
 report that protocol. $d=200$, three GCN layers, history of ten snapshots
-(five on GDELT), $6.3$M parameters. One A100 per run: YAGO 42\,min, ICEWS18
+(five on GDELT), $5.96$M parameters. One A100 per run: YAGO 42\,min, ICEWS18
 1\,h\,15, WIKI 3\,h, GDELT 8\,h.
 
 \subsection{The protocol is verified against the reference}
@@ -306,19 +339,19 @@ dataset & method & MRR & H@1 & H@3 & H@10 \\
 \midrule
 \multirow{2}{*}{YAGO}
  & DaeMon  & 91.59 & 90.03 & \textbf{93.00} & \textbf{93.34} \\
- & \textsc{Kairos} & \textbf{91.64}\,$\pm$0.04 & \textbf{90.32}\,$\pm$0.08 & 92.88 & 93.08 \\
+ & \textsc{Cadence} & \textbf{91.64}\,$\pm$0.04 & \textbf{90.32}\,$\pm$0.08 & 92.88 & 93.08 \\
 \midrule
 \multirow{2}{*}{WIKI}
  & DaeMon  & 82.38 & 78.26 & \textbf{86.03} & \textbf{88.01} \\
- & \textsc{Kairos} & \textbf{82.94}\,$\pm$0.15 & \textbf{79.84}\,$\pm$0.28 & 85.77 & 86.95 \\
+ & \textsc{Cadence} & \textbf{82.94}\,$\pm$0.15 & \textbf{79.84}\,$\pm$0.28 & 85.77 & 86.95 \\
 \midrule
 \multirow{2}{*}{ICEWS18}
  & DiMNet  & 34.13 & 23.29 & 38.42 & \textbf{55.80} \\
- & \textsc{Kairos} & \textbf{34.59}\,$\pm$0.14 & \textbf{24.78}\,$\pm$0.11 & \textbf{39.06} & 53.55 \\
+ & \textsc{Cadence} & \textbf{34.59}\,$\pm$0.14 & \textbf{24.78}\,$\pm$0.11 & \textbf{39.06} & 53.55 \\
 \midrule
 \multirow{2}{*}{GDELT}
  & DiMNet  & 21.93 & 14.03 & 23.57 & 37.49 \\
- & \textsc{Kairos}\pending{} & \textbf{26.34} & \textbf{17.59} & \textbf{29.07} & \textbf{43.44} \\
+ & \textsc{Cadence}\pending{} & \textbf{26.34} & \textbf{17.59} & \textbf{29.07} & \textbf{43.44} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -328,11 +361,15 @@ $13.5\times$ on ICEWS18 H@1, $5.6\times$ on WIKI and $3.6\times$ on YAGO.
 We lose H@10 on three of four datasets; Section~\ref{sec:strat} shows why.
 
 \subsection{The mechanism ablation}
+\label{sec:mech}
 
-\texttt{--phase\_off} restricts the recurrence branch to exactly the published
-form, $\log a(r,o) + p(r,o)\log(1+c) - b(r,o)\Delta t$ with $p, b \ge 0$
-predicted from $(r,o)$ alone. A unit test sweeps $\Delta t$ and $c$ and
-asserts the restriction holds, and asserts the full model violates it.
+The claim is about a functional form, so the ablation replaces the form and
+nothing else. We restrict the recurrence branch to exactly the published
+scorer, $\log a(r,o) + p(r,o)\log(1+c) - b(r,o)\,\Delta t$ with $p, b \ge 0$
+predicted from $(r,o)$ alone, and hold the backbone, the superposition rule,
+the optimiser and the schedule fixed. A unit test sweeps $\Delta t$ and $c$ over
+twenty seeds and asserts that the restricted branch is monotone in both and
+that the full branch is not.
 
 \begin{table}[t]
 \centering
@@ -356,13 +393,20 @@ against $21.93$): the backbone is competitive and the kernel adds on top.
 \subsection{Where the gain lands}
 \label{sec:strat}
 
-\todo{Insert the stratified table and the phase\_feat\_off column once those
-runs finish. The finding so far: the gain concentrates on the blocked stratum
-on YAGO ($+5.66$ vs $+1.77$ H@1) and WIKI ($+18.31$ vs $+6.61$), the two
-datasets whose median phase is $1.000$, and inverts on ICEWS18 and GDELT. On
-GDELT, blanking only the phase features while holding the trunk and all other
-features fixed costs $-0.07$ MRR, i.e.\ nothing, so the entire $+4.57$ there
-is feature access rather than phase.}
+A pooled metric cannot say whether a gain came from the mechanism this paper
+argues for. We therefore partition the test set into three disjoint strata:
+\emph{blocked}, where a distractor dominates the answer in both $\Delta t$ and
+count; \emph{clean}, where the answer has a history and is not dominated; and
+\emph{no-history}, where the answer never occurred with $(s,r)$ before. Only
+the first is the target of Proposition~\ref{prop:blocked}.
+
+\todo{Insert the stratified table once the remaining seeds land. The finding so
+far, as H@1 gained over the monotone kernel: on YAGO the blocked stratum gains
+$+5.66$ against $+1.77$ on clean, and on WIKI $+18.31$ against $+6.61$ --- the
+gain concentrates where the proposition says the restricted form cannot
+succeed. On ICEWS18 and GDELT the ordering inverts, which we attribute to those
+datasets being dominated by the no-history stratum, where neither form applies;
+state this, do not hide it.}
 
 \section{Two Negative Results}
 \label{sec:negative}
