@@ -520,8 +520,10 @@ def main():
     print("    blocked     has history, dominated on (dt,count) -> no")
     print("                f(count)*g(Dt) with g non-increasing ranks it first")
     print("    clean       has history and dominates -> monotone kernel suffices")
-    print("  The claim is tested by blocked vs clean ACROSS variants:")
-    print("  --phase_off should lose far more on blocked than on clean.")
+    print("  The claim is tested by comparing this run against --phase_off,")
+    print("  which restores the published two-feature monotone form. That")
+    print("  form cannot order the blocked stratum at all (Proposition 1), so")
+    print("  the difference should be largest there.")
 
     if not cfg.rec_off:
         try:
