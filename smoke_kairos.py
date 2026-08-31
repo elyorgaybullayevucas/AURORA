@@ -76,21 +76,31 @@ for kw in [{}, {"rec_off": True}, {"struct_off": True}, {"phase_off": True}]:
         assert ev > 0, f"{tag}: evolver frozen"
 
 # ── the recurrence intensity is not confined to be monotone in dt ───────────
-# The published form is monotone by construction; a sign change here is what
-# places this model outside that family. Weights are perturbed so the test
-# measures reachability, not what an untrained net happens to output.
-m = KAIROS(NE, NR, cfg)
-torch.nn.init.normal_(m.rec_head.weight, std=0.8)
-torch.nn.init.normal_(m.rec_head.bias, std=0.8)
-for layer in m.trunk:
-    if isinstance(layer, torch.nn.Linear):
-        torch.nn.init.normal_(layer.weight, std=0.5)
+# The published form is monotone by construction. The question is whether
+# this branch can leave that family at all, so the test sweeps a fixed set of
+# initialisations and asks whether ANY of them is non-monotone. Asserting on
+# a single random draw made this flaky: it passed under one torch build and
+# failed under another purely because the RNG stream differs.
 dts = np.linspace(0, 40, 80)
-c = m.kernel(0, 1, dts, torch.device("cpu")).numpy()
-sc = int((np.diff(np.sign(np.diff(c))) != 0).sum())
-print(f"recurrence intensity sign changes over dt = {sc} "
-      f"(published form = 0 by construction)")
-assert sc >= 1, "intensity is monotone in dt; it is inside the published family"
+
+
+def n_sign_changes(seed):
+    torch.manual_seed(seed)
+    mm = KAIROS(NE, NR, cfg)
+    torch.nn.init.normal_(mm.rec_head.weight, std=0.8)
+    torch.nn.init.normal_(mm.rec_head.bias, std=0.8)
+    for layer in mm.trunk:
+        if isinstance(layer, torch.nn.Linear):
+            torch.nn.init.normal_(layer.weight, std=0.5)
+    c = mm.kernel(0, 1, dts, torch.device("cpu")).numpy()
+    return int((np.diff(np.sign(np.diff(c))) != 0).sum())
+
+
+counts = [n_sign_changes(sd) for sd in range(20)]
+non_mono = sum(1 for c in counts if c >= 1)
+print(f"non-monotone in dt for {non_mono}/20 initialisations "
+      f"(max sign changes {max(counts)}; published form = 0 for every one)")
+assert non_mono >= 1,     "intensity is monotone in dt under every initialisation tried; "     "the branch is inside the published family"
 
 # and the model must no longer read the phase inputs at all
 mp = KAIROS(NE, NR, cfg); mp.eval()
