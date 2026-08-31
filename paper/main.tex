@@ -23,8 +23,8 @@
 
 \begin{document}
 
-\title{Beyond Monotone Decay: Unconstrained Recurrence\\
-Intensities for Temporal Knowledge Graph Forecasting}
+\title{Monotone Recurrence Has a Blind Spot: Diagnosis and\\
+Repair for Temporal Knowledge Graph Forecasting}
 
 \author{\IEEEauthorblockN{Anonymous}
 \IEEEauthorblockA{\textit{Institution} \\ \textit{Address} \\ email}}
@@ -46,19 +46,25 @@ time and larger count than the answer, no such scorer can place the answer
 first, however its parameters are fitted. We call such queries \emph{monotone-blocked}, note that the
 property is defined without reference to any model, and measure it at
 $41.6\%$ of YAGO, $29.3\%$ of WIKI, $26.6\%$ of ICEWS18 and $15.8\%$ of GDELT
-test queries. We then introduce \textsc{Cadence}, which abandons the
-product form altogether: its recurrence branch is an unconstrained function of
-thirteen inter-arrival statistics of a candidate's observed history, so it is
-neither monotone in $\Delta t$ nor separable in the count, and it recovers the
-classical exponential kernel as one point in its hypothesis space. The two
-branches are combined as what they are --- intensities of superposed point
-processes --- through a log-sum-exp rather than a learned gate, which removes
-the branch collapse we observed with gating. Restricting the branch to the
-published monotone form while holding everything else fixed costs $1.83$,
-$8.11$, $5.39$ and $4.57$ MRR on the four benchmarks, so the functional form,
-not the backbone, carries the gain. \textsc{Cadence} exceeds the published
-state of the art on all four benchmarks under the time-aware filtered
-protocol, which we verify against the reference implementation.
+test queries, and it partitions any test set into strata on which a mechanism
+can be tested rather than only scored. We then introduce \textsc{Cadence},
+which abandons the two-argument form altogether: its recurrence branch is an
+unconstrained function of thirteen inter-arrival statistics of a candidate's
+observed history, conditioned on the query, so it is neither monotone in
+$\Delta t$ nor a function of the count and the elapsed time alone, and it
+recovers the classical exponential kernel as one point in its hypothesis
+space. The two branches are combined as what they are --- intensities of
+superposed point processes --- through a log-sum-exp rather than a learned
+gate. Restricting the branch to the published monotone form while holding the
+backbone, the optimiser and the schedule fixed costs $1.83$, $8.11$, $5.39$
+and $4.57$ MRR on the four benchmarks, and the loss concentrates on the
+blocked stratum, where H@1 falls by $5.66$ on YAGO and $18.31$ on WIKI against
+$1.77$ and $6.61$ on unblocked queries with a history. \textsc{Cadence} is at
+or above the strongest numbers reported by the comparison tables it is
+measured against, under a time-aware filtered protocol we verify against the
+reference implementation; we also document why those tables disagree with each
+other and what that does to any leaderboard claim in this area, our own
+included.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -157,12 +163,18 @@ reporting anything (Section~\ref{sec:protocol}).
   \item \textsc{Cadence}, whose recurrence intensity strictly contains the
         family the proposition constrains, together with a superposition rule
         that follows from the point-process reading and admits no gate.
-  \item State-of-the-art results on YAGO, WIKI, ICEWS18 and GDELT under the
-        time-aware filtered protocol, verified against the reference
-        implementation rather than assumed to match it.
   \item A stratified evaluation that tests the proposed mechanism on the
-        stratum it targets, rather than reporting only a pooled metric, and two
-        negative results reported in full.
+        stratum it targets rather than reporting only a pooled metric. This is
+        where we ask the paper to be judged: the restriction to the monotone
+        form costs $5.66$ H@1 on YAGO's blocked stratum against $1.77$ on its
+        unblocked queries, and $18.31$ against $6.61$ on WIKI.
+  \item Results on YAGO, WIKI, ICEWS18 and GDELT under a time-aware filtered
+        protocol verified against the reference implementation rather than
+        assumed to match it --- together with an account, in
+        Section~\ref{sec:comparability}, of why published tables in this area
+        disagree and what that costs any leaderboard claim, ours included.
+  \item Two negative results reported in full, including one mechanism we
+        expected to work and removed.
 \end{itemize}
 
 \section{Related Work}
@@ -407,10 +419,23 @@ For a candidate $o$ we summarise its observed history by a vector
 $\phi_o \in \mathbb{R}^{13}$ and set
 \begin{equation}
 \log \lambda_{\mathrm{rec}}(o) =
-\mathrm{MLP}\bigl[\,\mathrm{LN}(\phi_o) \,\|\, u(r) \,\|\, v(o)\,\bigr] + b,
+\mathrm{MLP}\bigl[\,\mathrm{LN}(\phi_o) \,\|\, u(r) \,\|\, v(o)
+                  \,\|\, q(E(t)[s])\,\bigr] + b,
 \end{equation}
-where $u$ and $v$ are learned relation and entity contexts, the trunk is two
-Linear--LayerNorm--GELU blocks, and $b$ is a scalar initialised at $-2$.
+where $u$, $v$ and $q$ are learned relation, entity and subject contexts, the
+trunk is two Linear--LayerNorm--GELU blocks, and $b$ is a scalar initialised at
+$-2$.
+
+The subject term $q$ is not decoration, and leaving it out has a specific
+cost. Because $\mathrm{logaddexp}(a,b) \ge a$, the recurrence intensity can
+only ever raise a candidate that has a history relative to one that does not.
+Its only way to stay out of the way on a query whose answer never occurred
+with $(s,r)$ is to drive its own intensity down --- and it cannot decide to do
+that without seeing the query it is answering. This is not a gate between the
+branches: no mixing weight is learned and the superposition rule of
+Section~\ref{sec:method} is untouched. It is the intensity depending on the
+conditioning information $\lambda_{\mathrm{rec}}(o \mid \mathcal{H}_o, s, r)$
+was defined on.
 
 The thirteen statistics are the count, the elapsed time $\Delta t$ and the mean
 inter-arrival gap of each of the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$
@@ -432,7 +457,10 @@ precisely what the product form forbids.
 \subsection{Structural intensity}
 
 The backbone is adopted from prior work: a composition GCN over each snapshot
-with a cross-time link at equal layer depth, node states split into
+with a cross-time link at equal layer depth, aggregating with both mean and max
+--- a reduced form of the multi-aggregator scheme of~\cite{pna}, which
+separates many weak neighbours from one decisive one where a mean cannot ---
+node states split into
 complementary active and stable factors with a drift penalty on the stable
 factor across adjacent snapshots, a GRU across snapshots, and a ConvTransE
 decoder over the full entity table. We use LayerNorm rather than BatchNorm in
@@ -508,9 +536,42 @@ dataset & method & MRR & H@1 & H@3 & H@10 \\
 \end{tabular}
 \end{table}
 
-Margins over the state of the art relative to the seed standard deviation are
-$13.5\times$ on ICEWS18 H@1, $5.6\times$ on WIKI and $3.6\times$ on YAGO.
-We lose H@10 on three of four datasets; Section~\ref{sec:strat} shows why.
+Margins relative to the seed standard deviation are $13.5\times$ on ICEWS18
+H@1, $5.6\times$ on WIKI and $3.6\times$ on YAGO. We lose H@10 on three of
+four datasets; Section~\ref{sec:strat} shows why.
+
+\subsection{What these margins are and are not worth}
+\label{sec:comparability}
+
+We report Table~\ref{tab:main} because the field expects it, and we then argue
+that it should not carry the weight of the paper. Three facts, none of them
+ours, make that position hard to avoid.
+
+First, the comparison tables disagree with each other.
+Table~\ref{tab:main} follows DiMNet's table on the event datasets and DaeMon's
+on YAGO and WIKI. DiMNet's table does not contain LogCL, TiRGN, CENET or
+CountTRuCoLa. LogCL~\cite{logcl} reports ICEWS18 MRR $35.67$, above both
+DiMNet's $34.13$ and ours, a year before DiMNet claimed the state of the art;
+CognTKE~\cite{cogntke} reports WIKI $83.21$, above ours. Both state that they
+use the time-aware filtered protocol, as do we. They cannot all be measuring
+the same quantity, and we have not rerun them, so we do not claim to beat
+them. Gastinger et al.~\cite{gastingereval} documented precisely this and
+showed the setting alone can reverse rankings.
+
+Second, the quantity being compared is partly a shortcut. A baseline that
+ranks candidates by $(s,r)$ co-occurrence frequency and uses no temporal
+information at all comes within roughly a quarter of the state of the art on
+YAGO and WIKI and within $15\%$ on GDELT~\cite{shortcut}, and the non-learned
+recurrency baseline of~\cite{historyrepeats} outscores most published models on
+GDELT and YAGO outright. Against that background our YAGO margin of $+0.05$
+MRR over DaeMon is not evidence of anything.
+
+Third, and consequently, a pooled metric cannot separate a better mechanism
+from a better fit to the shortcut. That is what
+Section~\ref{sec:strat} is for, and it is where we ask the paper to be judged:
+the blocked stratum is by construction the subset on which a monotone
+count-and-recency scorer cannot succeed, so a gain concentrated there is
+evidence about the mechanism in a way that a pooled MRR is not.
 
 \subsection{The mechanism ablation}
 \label{sec:mech}
@@ -581,13 +642,32 @@ the other branches.
 
 \section{Limitations}
 
+\paragraph{The no-history stratum}
 The stratum where the answer has no $(s,r)$ history is the largest single pool
 of failures on the event datasets: $50.1\%$ of ICEWS18 at $5.65$ H@1 and
-$40.4\%$ of GDELT at $1.63$. The recurrence branch is silent there by
-construction and the structural branch is weak; we do not close this.
-H@10 is below the state of the art on three datasets. Baselines are quoted
-rather than rerun, although Section~\ref{sec:protocol} removes the filtering
-and query-count risk. We report three seeds, and one on GDELT.
+$40.4\%$ of GDELT at $1.63$. Query conditioning lets the recurrence intensity
+step back on such queries, but it cannot supply evidence the branch does not
+have; the structural branch is weak there and we do not close this.
+
+\paragraph{Baselines are quoted, not rerun}
+Section~\ref{sec:protocol} removes the filtering and query-count risk in
+\emph{our} harness, but it says nothing about theirs. Since published tables in
+this area disagree (Section~\ref{sec:comparability}), the honest statement is
+that we match or exceed the tables we are measured against and that no
+cross-table claim in this literature, ours included, is currently safe. Rerunning
+LogCL~\cite{logcl} and one 2026 method under our harness is the obvious next
+step and is not done here.
+
+\paragraph{Benchmarks}
+All four datasets are known to be partly solvable by a co-occurrence
+shortcut~\cite{shortcut,historyrepeats}. Our stratified evaluation is a
+response to this, not a solution to it; the bias-corrected replacements
+proposed in~\cite{shortcut} appeared too recently for us to use, and the
+diagnostic of Section~\ref{sec:blocked} applies unchanged to them.
+
+\paragraph{Other}
+H@10 is below the compared systems on three datasets. We report three seeds,
+and one on GDELT.
 
 \section*{Acknowledgements}
 \todo{Per venue policy, disclose tooling used in preparation if required.}
