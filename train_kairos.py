@@ -298,6 +298,7 @@ def main():
     variant = ("structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
                "monotone-kernel" if cfg.phase_off else
+               "no-query-conditioning" if cfg.query_off else
                "full+path" if not cfg.path_off else "full")
     print(BANNER)
     print(f"  dataset={cfg.dataset}  variant={variant}  d={cfg.embed_dim}  "

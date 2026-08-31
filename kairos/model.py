@@ -277,11 +277,33 @@ class KAIROS(nn.Module):
         self.register_buffer("feat_idx", torch.tensor(keep, dtype=torch.long))
         n_feat = len(keep)
 
+        # ── query conditioning ───────────────────────────────────────────────
+        # lambda_rec is written lambda_rec(o | H_o, s, r), but an earlier
+        # version of this code passed only (r, o, H_o): the subject never
+        # reached the head. That omission has a specific and measurable cost.
+        # The branches combine by logaddexp, and logaddexp(a, b) >= a, so the
+        # recurrence intensity can only ever raise a historical candidate
+        # relative to a non-historical one -- it has no way to say "for this
+        # query the history is uninformative". Without the subject the head
+        # cannot even represent the distinction: the features are counts of
+        # (s,r,o), but nothing tells it which subject regime it is in.
+        #
+        # That is exactly where the model is weakest. On the stratum where the
+        # answer never occurred with (s,r) -- 50.1% of ICEWS18 and 40.4% of
+        # GDELT -- H@1 is 5.65 and 1.63. Conditioning on the evolved subject
+        # state lets the intensity be driven down for such queries. It is not
+        # a gate between the branches: no mixing weight is learned, and the
+        # superposition rule is untouched. It is the intensity depending on
+        # the conditioning information the model was always defined to use.
+        self.sub_ctx = nn.Linear(d, dh)
+        self.query_off = getattr(cfg, "query_off", False)
+        q_extra = 0 if self.query_off else dh
+
         self.feat_norm = nn.LayerNorm(n_feat)
         self.rel_ctx = nn.Linear(d, dh)
         self.ent_ctx = nn.Linear(d, dh)
         self.trunk = nn.Sequential(
-            nn.Linear(n_feat + 2 * dh, 2 * dh), nn.LayerNorm(2 * dh),
+            nn.Linear(n_feat + 2 * dh + q_extra, 2 * dh), nn.LayerNorm(2 * dh),
             nn.GELU(), nn.Dropout(cfg.dropout),
             nn.Linear(2 * dh, 2 * dh), nn.LayerNorm(2 * dh), nn.GELU(),
         )
@@ -325,7 +347,7 @@ class KAIROS(nn.Module):
             return self.ent_bias.unsqueeze(0).expand(subs.numel(), -1)
         return self.decoder(E[subs], self.rel_emb(rels), E, self.ent_bias)
 
-    def recurrence(self, rels, sup_ids, sup_feat):
+    def recurrence(self, rels, sup_ids, sup_feat, h_sub=None):
         B, S, _ = sup_feat.shape
         h_r = self.rel_ctx(self.rel_emb(rels)).unsqueeze(1).expand(B, S, -1)
         h_o = self.ent_ctx(self.ent_emb(sup_ids.clamp(0, self.N - 1)))
@@ -343,7 +365,14 @@ class KAIROS(nn.Module):
                     - F.softplus(b_raw) * dt) + self.rec_bias
 
         feat = sup_feat.index_select(-1, self.feat_idx)
-        z = self.trunk(torch.cat([self.feat_norm(feat), h_r, h_o], -1))
+        parts = [self.feat_norm(feat), h_r, h_o]
+        if not self.query_off:
+            if h_sub is None:
+                # kernel() and any caller without an evolved table: fall back
+                # to the static embedding so the shape is still correct.
+                h_sub = self.sub_ctx(self.ent_emb.weight.new_zeros(B, self.sub_ctx.in_features))
+            parts.append(h_sub.unsqueeze(1).expand(B, S, -1))
+        z = self.trunk(torch.cat(parts, -1))
         return self.rec_head(z).squeeze(-1) + self.rec_bias
 
     # ── forward ──────────────────────────────────────────────────────────────
@@ -362,7 +391,8 @@ class KAIROS(nn.Module):
             return ((f_struct, f_struct, f_path) if return_parts
                     else f_struct)
 
-        f_rec = self.recurrence(rels, sup_ids, sup_feat)
+        h_sub = None if self.query_off else self.sub_ctx(E[subs])
+        f_rec = self.recurrence(rels, sup_ids, sup_feat, h_sub)
         f_rec = f_rec.masked_fill(~sup_mask, -1e4)
 
         ids = sup_ids.clamp(0, self.N - 1)

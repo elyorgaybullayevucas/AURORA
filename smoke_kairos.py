@@ -266,16 +266,55 @@ assert dec <= 1e-5, "--phase_off is not non-decreasing in count"
 
 # and the full model must NOT be confined to be monotone -- otherwise the
 # ablation removes nothing and there is no claim to test
-mf = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0})); mf.eval()
-torch.nn.init.normal_(mf.rec_head.weight, std=0.8)
-for layer in mf.trunk:
-    if isinstance(layer, torch.nn.Linear):
-        torch.nn.init.normal_(layer.weight, std=0.5)
-with torch.no_grad():
-    scf = mf.recurrence(rl, ids, feat)[0]
-assert (scf[1:] - scf[:-1]).max().item() > 1e-4, \
+#
+# A single initialisation is not evidence here: a randomly initialised MLP is
+# monotone on this sweep a fair fraction of the time, so a one-seed assert
+# passes or fails on the RNG stream and did in fact differ between a laptop
+# and the server. Sweep fixed seeds and require that non-monotonicity is the
+# clear majority behaviour.
+n_non_mono = 0
+TRIALS = 20
+for seed in range(TRIALS):
+    torch.manual_seed(1000 + seed)
+    mf = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0})); mf.eval()
+    torch.nn.init.normal_(mf.rec_head.weight, std=0.8)
+    for layer in mf.trunk:
+        if isinstance(layer, torch.nn.Linear):
+            torch.nn.init.normal_(layer.weight, std=0.5)
+    with torch.no_grad():
+        scf = mf.recurrence(rl, ids, feat)[0]
+    if (scf[1:] - scf[:-1]).max().item() > 1e-4:
+        n_non_mono += 1
+print(f"full model non-monotone in dt for {n_non_mono}/{TRIALS} initialisations "
+      f"(published form = 0/{TRIALS} by construction)")
+assert n_non_mono >= TRIALS // 2, \
     "full model is monotone in dt; the ablation restricts nothing"
 print("ablation is a real restriction OK")
+
+# ── the recurrence intensity must actually depend on the subject ────────────
+# logaddexp(a, b) >= a, so the recurrence branch can only raise a historical
+# candidate relative to a non-historical one. Its only way to stay out of the
+# way on a query whose answer is not in the history is to drive its own
+# intensity down, and it cannot decide to do that without seeing the query.
+# This asserts the subject reaches the head, and that --query_off removes it.
+torch.manual_seed(0)
+mq = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0})); mq.eval()
+hs_a = torch.zeros(1, mq.sub_ctx.out_features)
+hs_b = torch.ones(1, mq.sub_ctx.out_features) * 3.0
+with torch.no_grad():
+    ra = mq.recurrence(rl, ids, feat, hs_a)[0]
+    rb = mq.recurrence(rl, ids, feat, hs_b)[0]
+spread = (ra - rb).abs().max().item()
+print(f"recurrence responds to the subject state: max |delta| = {spread:.3e}")
+assert spread > 1e-4, "subject state does not reach the recurrence head"
+
+mo = KAIROS(NE, NR, KairosConfig(**{**vars(cfg), "dropout": 0.0,
+                                    "query_off": True})); mo.eval()
+with torch.no_grad():
+    oa = mo.recurrence(rl, ids, feat, hs_a)[0]
+    ob = mo.recurrence(rl, ids, feat, hs_b)[0]
+assert torch.allclose(oa, ob), "--query_off still reads the subject"
+print("query conditioning OK  (--query_off removes it cleanly)")
 
 # ── tie-aware ranking ───────────────────────────────────────────────────────
 from train_kairos import ranks_of

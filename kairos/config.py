@@ -84,6 +84,7 @@ class KairosConfig:
     rec_off: bool = False
     struct_off: bool = False
     phase_off: bool = False
+    query_off: bool = False
     num_workers: int = 6
     reserve_gb: int = 0
     hits_at: Tuple = (1, 3, 10)
@@ -117,6 +118,7 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--rec_off", action="store_true")
     p.add_argument("--struct_off", action="store_true")
     p.add_argument("--phase_off", action="store_true")
+    p.add_argument("--query_off", action="store_true")
     p.add_argument("--path", action="store_true",
                    help="enable the path branch (much slower)")
     p.add_argument("--path_dim", type=int, default=None)
