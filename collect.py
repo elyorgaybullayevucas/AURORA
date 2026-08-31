@@ -11,6 +11,7 @@ table and the stratified table that tests the claim.
 import glob
 import json
 import os
+import re
 
 # time-aware filtered, x100. Sources recorded in TARGETS.md.
 BASELINES = {
@@ -28,13 +29,35 @@ SOTA = {"ICEWS18": "DiMNet", "GDELT": "DiMNet", "WIKI": "DaeMon",
 PROTO = "time_aware_filtered"
 
 
+def config_of(tag):
+    """
+    The configuration a run belongs to, which is its tag minus the seed.
+
+    Tags are written as <config><seed>, e.g. v2, v2s2, v2s3 are three seeds of
+    configuration "v2"; ds0s2, ds0s3, ds0s7 are three seeds of "ds0"; s2, s3,
+    s7 are three seeds of the untagged baseline configuration.
+    """
+    return re.sub(r"s\d+$", "", tag or "") or "-"
+
+
 def load(save_dir="checkpoints"):
     """
-    Group runs by (dataset, variant) and keep EVERY seed under that key.
+    Group runs by (dataset, variant, configuration) and keep EVERY seed there.
+
+    Two bugs have been fixed here, in order.
 
     Keying by variant alone silently kept only the last file loaded, so a
-    five-seed sweep -- all of which write variant "full" -- would have been
-    reported as a single run.
+    five-seed sweep -- all of which write variant "full" -- was reported as a
+    single run.
+
+    Keying by (dataset, variant) then pooled runs that are not seeds of each
+    other. On YAGO that put ten files under "full": three seeds of the current
+    phase-free model, three of the earlier model that still had phase, three
+    with deep supervision disabled, and the original. The reported 91.40+-0.48
+    was therefore variation ACROSS CONFIGURATIONS presented as seed noise, and
+    the conclusion drawn from it -- that we do not separate from DaeMon -- was
+    not supported by it either. Seeds of one configuration are the only thing
+    a standard deviation may be taken over.
     """
     runs = {}
     for f in sorted(glob.glob(os.path.join(save_dir, "*_kairos_*_results.json"))):
@@ -43,8 +66,33 @@ def load(save_dir="checkpoints"):
         except Exception as e:
             print(f"[skip] {f}: {e}")
             continue
-        runs.setdefault(d["dataset"], {}).setdefault(d["variant"], []).append(d)
+        tag = d.get("tag") or (d.get("config") or {}).get("tag") or ""
+        cfgname = config_of(tag)
+        key = d["variant"] if cfgname == "-" else f"{d['variant']} ({cfgname})"
+        runs.setdefault(d["dataset"], {}).setdefault(key, []).append(d)
     return runs
+
+
+# The configuration the paper reports. Older tags are kept on disk and still
+# printed in the per-dataset tables, but they are superseded and must not be
+# the ones a headline comparison or the claim test reads.
+CURRENT = "v2"
+
+
+def pick(byvariant, variant):
+    """
+    Entries for `variant` in the configuration we currently report.
+
+    Prefers the current tag, then an untagged run, then any configuration of
+    that variant -- and never merges two of them, which is the whole point.
+    """
+    for k in (f"{variant} ({CURRENT})", variant):
+        if k in byvariant:
+            return byvariant[k]
+    for k in sorted(byvariant):
+        if k == variant or k.startswith(variant + " ("):
+            return byvariant[k]
+    return []
 
 
 def agg(entries, proto=None, key="MRR"):
@@ -95,7 +143,7 @@ def main():
             label = f"KAIROS {variant}" + (f" [{n} seeds]" if n > 1 else "")
             print(f"  {label:<26} " + " ".join(cols))
 
-        fe = runs[ds].get("full", [])
+        fe = pick(runs[ds], "full")
         full = fe[0]["test"].get(PROTO) if fe else None
         ref = BASELINES.get(ds, {}).get(SOTA.get(ds))
         if full and ref:
@@ -128,9 +176,9 @@ def main():
     print(f"\n  {'dataset':<9} {'what is compared':<36} "
           f"{'blocked':>9} {'clean':>9}")
     for ds in ("YAGO", "WIKI", "ICEWS18", "GDELT"):
-        fu = (runs.get(ds, {}).get("full") or [{}])[0].get("test", {})
-        nf = (runs.get(ds, {}).get("no-phase-feature") or [{}])[0].get("test", {})
-        mk = (runs.get(ds, {}).get("monotone-kernel") or [{}])[0].get("test", {})
+        fu = (pick(runs.get(ds, {}), "full") or [{}])[0].get("test", {})
+        nf = (pick(runs.get(ds, {}), "no-phase-feature") or [{}])[0].get("test", {})
+        mk = (pick(runs.get(ds, {}), "monotone-kernel") or [{}])[0].get("test", {})
 
         def delta(a, b, k):
             if k in a and k in b:

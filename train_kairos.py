@@ -545,6 +545,7 @@ def main():
 
     with open(os.path.join(cfg.save_dir, f"{name}_results.json"), "w") as f:
         json.dump({"dataset": cfg.dataset, "variant": variant,
+                   "tag": cfg.tag, "seed": cfg.seed,
                    "best_epoch": best_ep, "valid_mrr": best,
                    "test": res, "config": vars(cfg)}, f, indent=2, default=str)
     print(f"  saved → {cfg.save_dir}/{name}_results.json")
