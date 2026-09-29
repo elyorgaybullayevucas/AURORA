@@ -34,6 +34,7 @@ from tqdm import tqdm
 from kairos.config import parse_args
 from kairos.data import KairosData, identity_collate
 from kairos.model import KAIROS
+from kairos.prism import PRISM
 
 BANNER = r"""
 ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -124,7 +125,10 @@ def _chunk(model, cfg, it, E_d, a, b, n, use_cuda):
         # construction. Yet --rec_off reaches 46.46 MRR, so the branch can
         # learn when it has to. Scoring it against the full label set on its
         # own forces that, for one extra cross-entropy and no new parameters.
-        if cfg.struct_aux > 0 and not cfg.rec_off:
+        # PRISM returns no separate structural scores: its factorised
+        # likelihood already trains the structural expert on its own problem,
+        # which is the job this auxiliary loss was a workaround for.
+        if cfg.struct_aux > 0 and not cfg.rec_off and lg_struct is not None:
             lc = lc + cfg.struct_aux * F.cross_entropy(
                 lg_struct.float(), obj, label_smoothing=cfg.label_smoothing)
         # The path branch needs the same treatment, and the first run showed
@@ -299,7 +303,8 @@ def strata(sup_feat, sup_mask, sup_ids, objs):
 
 def main():
     cfg = parse_args()
-    variant = ("structural-only" if cfg.rec_off else
+    variant = ("prism" if cfg.prism else
+               "structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
                "monotone-kernel" if cfg.phase_off else
                "no-query-conditioning" if cfg.query_off else
@@ -350,7 +355,8 @@ def main():
               f"budget {cfg.path_mem_gb} GB)")
         cfg.query_chunk = auto
 
-    model = KAIROS(data.num_entities, data.num_relations, cfg).to(device)
+    Model = PRISM if cfg.prism else KAIROS
+    model = Model(data.num_entities, data.num_relations, cfg).to(device)
     print(f"[model] params="
           f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
