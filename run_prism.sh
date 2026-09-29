@@ -72,7 +72,7 @@ while IFS='|' read -r g jobs mins; do
   IFS=';' read -ra js <<< "$jobs"
   for j in "${js[@]}"; do
     read -r ds tag seed <<< "$j"
-    chain+="python train_kairos.py --dataset $ds --tag $tag --seed $seed \
+    chain+="python -u train_kairos.py --dataset $ds --tag $tag --seed $seed \
 --gpu $g --prism --cache 2>&1 | tee logs/prism_${ds}_${tag}.out; "
   done
   tmux new -d -s "prism_gpu$g" "cd $(pwd) && $chain"

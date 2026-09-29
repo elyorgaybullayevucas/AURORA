@@ -119,7 +119,8 @@ def main():
         found = log_for(ds, tag)
         exp = CUR_PARAMS.get((ds, variant))
         if found is None:
-            note = "code=?  (started before logs carried tag=)"
+            note = ("code=?  (no log header yet: output still buffered, or the run "
+                    "predates tag= in the header)")
         elif found[1] and exp:
             note = ("code=CURRENT" if found[1] == exp
                     else f"code=OLD (params {found[1]:,} != {exp:,})")
