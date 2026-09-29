@@ -41,6 +41,7 @@ score vector is wrong, this reports a wrong number faithfully. Its only claim
 is that the filtering and the ranking are identical to ours.
 """
 import argparse
+import os
 import json
 
 import numpy as np
@@ -51,14 +52,23 @@ from kairos.data import KairosData
 from train_kairos import Meters, ranks_of
 
 
+# this repository's own data, whatever directory the caller runs from
+REPO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+
+
 class ExternalScorer:
     """Applies our filter and our tie-aware ranking to someone else's scores."""
 
-    def __init__(self, dataset, data_root="data", hits_at=(1, 3, 10),
+    def __init__(self, dataset, data_root=None, hits_at=(1, 3, 10),
                  device="cpu"):
         cfg = KairosConfig(dataset=dataset)
-        if data_root:
-            cfg.data_root = data_root
+        # KairosData reads cfg.data_dir. This used to set cfg.data_root, which
+        # nothing reads, so the argument was silently ignored and the index
+        # was built from whatever "data/" was relative to the CURRENT
+        # directory -- harmless when run from this repo, wrong when imported
+        # from another model's checkout. Resolved to an absolute path so it
+        # does not depend on where the caller runs.
+        cfg.data_dir = os.path.abspath(data_root or REPO_DATA)
         self.data = KairosData(cfg)
         self.index = self.data.index
         self.N = self.data.num_entities
@@ -175,7 +185,7 @@ def self_check(dataset, tag=None, variant="full", data_root="data",
 
     cfg = KairosConfig(dataset=dataset)
     if data_root:
-        cfg.data_root = data_root
+        cfg.data_dir = os.path.abspath(data_root)
     dev = T.device(device if T.cuda.is_available() else "cpu")
     data = KairosData(cfg)
     model = KAIROS(data.num_entities, data.num_relations, cfg).to(dev).eval()
@@ -259,7 +269,8 @@ def main():
         description="Re-score an external model's dumped predictions under "
                     "our protocol.")
     p.add_argument("--dataset", required=True)
-    p.add_argument("--data_root", default="data")
+    p.add_argument("--data_root", default=None,
+                   help="defaults to this repository's data/")
     p.add_argument("--self_check", action="store_true",
                    help="validate the bridge against our own evaluator and "
                         "exit; run this before trusting any external number")
@@ -281,15 +292,26 @@ def main():
     if not a.dump:
         p.error("give --dump, or --self_check")
 
-    z = np.load(a.dump)
+    # One .npz, or a directory of part_*.npz as external/patch_logcl.py
+    # writes them (one per test snapshot, so no file holds the whole matrix).
+    if os.path.isdir(a.dump):
+        parts = sorted(os.path.join(a.dump, f) for f in os.listdir(a.dump)
+                       if f.endswith(".npz"))
+        if not parts:
+            p.error(f"no .npz files in {a.dump}")
+    else:
+        parts = [a.dump]
     sc = ExternalScorer(a.dataset, a.data_root)
-    n = len(z["sub"])
-    for i in range(n):
-        sc.add(z["sub"][i], z["rel"][i], z["t"][i], z["obj"][i],
-               z["scores"][i], inverse=bool(z["inverse"][i])
-               if "inverse" in z else False)
-        if (i + 1) % 5000 == 0:
-            print(f"  {i+1:,}/{n:,}", flush=True)
+    done = 0
+    for k, part in enumerate(parts):
+        z = np.load(part)
+        inv = z["inverse"] if "inverse" in z else np.zeros(len(z["sub"]), bool)
+        for i in range(len(z["sub"])):
+            sc.add(z["sub"][i], z["rel"][i], z["t"][i], z["obj"][i],
+                   z["scores"][i], inverse=bool(inv[i]))
+        done += len(z["sub"])
+        if (k + 1) % 10 == 0 or k + 1 == len(parts):
+            print(f"  {k+1}/{len(parts)} parts, {done:,} queries", flush=True)
 
     print(sc.summary())
     if a.out:
