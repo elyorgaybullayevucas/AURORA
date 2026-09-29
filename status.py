@@ -48,75 +48,85 @@ def last_epoch(path):
     return (lines[-1] if lines else None), done, len(lines)
 
 
-CUR_PARAMS = {"YAGO": 6017518, "ICEWS18": 8610328}
+# Parameter counts of the CURRENT code, per (dataset, variant). PRISM adds a
+# router whose size does not depend on the vocabulary (+124,929 everywhere).
+CUR_PARAMS = {("YAGO", "full"): 6017518, ("ICEWS18", "full"): 8610328,
+              ("YAGO", "prism"): 6142447, ("ICEWS18", "prism"): 8735257}
 
 
 def live_trainings():
     """
-    Every train_kairos.py actually running, from the process table.
+    One row per training RUN, from the process table.
 
-    tmux session names are not evidence. A session can outlive its command, a
-    command can run under a name that says nothing about it, and the session
-    that was training ICEWS18 was called qcond_I18 while the launcher looked
-    for qcond_ICEWS18. The process table is the only thing that knows.
+    tmux session names are not evidence: a session outlives its command and
+    its name says nothing reliable about what runs in it. But the process
+    table needs care too. One run shows up as several processes -- the shell
+    tmux starts, the python process, and one DataLoader worker per
+    num_workers -- all carrying the same command line. Listing processes
+    showed one run six times. Rows are collapsed on (dataset, tag, variant),
+    and the shell wrapper (whose command line does not START with python) is
+    dropped.
     """
     try:
         out = subprocess.run(["pgrep", "-fa", "train_kairos.py"],
                              capture_output=True, text=True, timeout=10).stdout
     except Exception:
         return []
-    rows = []
+    runs = {}
     for line in out.splitlines():
-        if "pgrep" in line:
-            continue
         pid, _, cmd = line.partition(" ")
+        if "pgrep" in cmd or not re.match(r"(\S*/)?python\S*\s", cmd):
+            continue
         ds = re.search(r"--dataset\s+(\S+)", cmd)
         tg = re.search(r"--tag\s+(\S+)", cmd)
-        rows.append((pid, ds.group(1) if ds else "?",
-                     tg.group(1) if tg else "(untagged)", cmd))
-    return rows
+        key = (ds.group(1) if ds else "?", tg.group(1) if tg else "-",
+               "prism" if "--prism" in cmd else "full")
+        runs.setdefault(key, []).append(pid)
+    return sorted(runs.items())
 
 
-def log_header(path):
-    """params= and the variant banner from the top of a run's log."""
-    try:
-        with open(path, errors="ignore") as f:
-            head = f.read(4000)
-    except OSError:
-        return None, None
-    p = re.search(r"params=([\d,]+)", head)
-    v = re.search(r"CADENCE\s*│\s*(\S+)\s*│\s*(\S+)", head)
-    return (int(p.group(1).replace(",", "")) if p else None,
-            v.group(2) if v else None)
+def log_for(ds, tag):
+    """
+    The newest log whose header names THIS dataset and THIS tag.
+
+    Matching on the dataset alone attached one YAGO log to every YAGO run,
+    which labelled an old seed run as PRISM. The header carries tag= since the
+    run that introduced this check; older logs do not and return None.
+    """
+    best = None
+    for p in glob.glob(os.path.join(LOGS, "*.out")):
+        try:
+            with open(p, errors="ignore") as f:
+                head = f.read(4000)
+        except OSError:
+            continue
+        if f"dataset={ds} " not in head or f"tag={tag} " not in head:
+            continue
+        if best is None or os.path.getmtime(p) > os.path.getmtime(best[0]):
+            m = re.search(r"params=([\d,]+)", head)
+            best = (p, int(m.group(1).replace(",", "")) if m else None)
+    return best
 
 
 def main():
     ses = tmux_sessions()
-    print(f"\n{'='*78}\n  RUNNING  (from the process table, not session names)\n"
+    print(f"\n{'='*78}\n  RUNNING  (one row per run, from the process table)\n"
           f"{'='*78}")
     live = live_trainings()
     if not live:
         print("  no train_kairos.py process is running")
-    for pid, ds, tag, _ in live:
-        # find this run's log by (dataset, tag) rather than by session name
-        cand = [p for p in glob.glob(os.path.join(LOGS, "*.out"))
-                if log_header(p)[0] is not None]
-        best_p, params, variant = None, None, None
-        for p in cand:
-            pr, vr = log_header(p)
-            if os.path.getmtime(p) > time.time() - 900:
-                if best_p is None or os.path.getmtime(p) > os.path.getmtime(best_p):
-                    if tag in os.path.basename(p) or ds[:4] in os.path.basename(p):
-                        best_p, params, variant = p, pr, vr
-        note = ""
-        exp = CUR_PARAMS.get(ds)
-        if params and exp:
-            note = ("  code=CURRENT" if params == exp
-                    else f"  code=OLD (params {params:,} != {exp:,})")
-        elif params:
-            note = f"  params={params:,}"
-        print(f"  pid {pid:<8} {ds:<8} --tag {tag:<10}"
-              f"{('variant='+variant) if variant else '':<18}{note}")
+    for (ds, tag, variant), pids in live:
+        found = log_for(ds, tag)
+        exp = CUR_PARAMS.get((ds, variant))
+        if found is None:
+            note = "code=?  (started before logs carried tag=)"
+        elif found[1] and exp:
+            note = ("code=CURRENT" if found[1] == exp
+                    else f"code=OLD (params {found[1]:,} != {exp:,})")
+        else:
+            note = os.path.basename(found[0])
+        print(f"  {ds:<8} --tag {tag:<9} {variant:<6} "
+              f"{len(pids)} procs   {note}")
 
     print(f"\n  tmux sessions: "
           + (", ".join(sorted(ses)) if ses else "(none)"))

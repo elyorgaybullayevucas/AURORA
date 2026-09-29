@@ -310,7 +310,7 @@ def main():
                "no-query-conditioning" if cfg.query_off else
                "full+path" if not cfg.path_off else "full")
     print(BANNER)
-    print(f"  dataset={cfg.dataset}  variant={variant}  d={cfg.embed_dim}  "
+    print(f"  dataset={cfg.dataset}  variant={variant}  tag={cfg.tag or '-'}  d={cfg.embed_dim}  "
           f"gcn_layers={cfg.gcn_layers}  H={cfg.hist_len}  S={cfg.max_support}")
     print(f"  epochs={cfg.epochs}  lr={cfg.lr}  workers={cfg.num_workers}  "
           f"GPU={cfg.gpu}\n")
