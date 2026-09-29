@@ -52,18 +52,27 @@ class SnapshotSet(Dataset):
     def __len__(self):
         return len(self.times)
 
-    def history(self, t):
-        """Edge lists of the H snapshots preceding t (most recent first)."""
+    def history_times(self, t):
+        """
+        Timestamps of the H snapshots preceding t that exist, oldest first.
+
+        Split out of history() so the GPU cache can look the same timestamps
+        up in its own device-resident edge table: one definition of which
+        snapshots a query may see, used by both paths.
+        """
         out = []
         tt = t - self.step
         for _ in range(self.H):
             if tt < 0:
                 break
-            e = self.edges.get(int(tt))
-            if e is not None:
-                out.append(e)
+            if int(tt) in self.edges:
+                out.append(int(tt))
             tt -= self.step
         return out[::-1]                      # oldest first, for the GRU
+
+    def history(self, t):
+        """Edge lists of the H snapshots preceding t, oldest first."""
+        return [self.edges[tt] for tt in self.history_times(t)]
 
     def __getitem__(self, i):
         t = int(self.times[i])

@@ -175,18 +175,40 @@ class Meters:
         return out
 
 
+def items(data, split, device, cfg, shuffle=False, desc="", verbose=True):
+    """
+    Device-resident items for one split, from the candidate cache when one is
+    loaded and from the DataLoader otherwise. Both yield the same dict; the
+    cached path is bit-identical (smoke_cache.py) and does no CPU work.
+    """
+    cache = getattr(data, "cache", None)
+    if cache is not None:
+        cs = cache[split]
+        order = (torch.randperm(len(cs)).tolist() if shuffle
+                 else range(len(cs)))
+        for i in tqdm(order, desc=desc, disable=not verbose,
+                      dynamic_ncols=True, leave=False):
+            yield cs.get(i)
+        return
+    ds = {"train": data.train_set, "valid": data.valid_set,
+          "test": data.test_set}[split]
+    dl = DataLoader(ds, batch_size=1, shuffle=shuffle,
+                    num_workers=cfg.num_workers, collate_fn=identity_collate,
+                    persistent_workers=False,
+                    prefetch_factor=4 if cfg.num_workers > 0 else None)
+    for raw in tqdm(dl, desc=desc, disable=not verbose,
+                    dynamic_ncols=True, leave=False):
+        yield to_dev(raw, device)
+
+
 @torch.no_grad()
 def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
     model.eval()
-    ds = {"valid": data.valid_set, "test": data.test_set}[split]
-    dl = DataLoader(ds, batch_size=1, shuffle=False,
-                    num_workers=cfg.num_workers, collate_fn=identity_collate)
     M = Meters(tuple(cfg.hits_at))
     index = data.index
 
-    for raw in tqdm(dl, desc=f"eval[{split}]", disable=not verbose,
-                    dynamic_ncols=True, leave=False):
-        it = to_dev(raw, device)
+    for it in items(data, split, device, cfg, desc=f"eval[{split}]",
+                    verbose=verbose):
         with autocast("cuda", dtype=torch.bfloat16,
                       enabled=device.type == "cuda"):
             E, _ = model.evolve(it["hist"])
@@ -356,6 +378,9 @@ def main():
         cfg.query_chunk = auto
 
     Model = PRISM if cfg.prism else KAIROS
+    if cfg.cache:
+        from kairos.cache import load as load_cache
+        data.cache = load_cache(cfg, data, device)
     model = Model(data.num_entities, data.num_relations, cfg).to(device)
     print(f"[model] params="
           f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
@@ -394,14 +419,9 @@ def main():
     for ep in epoch_range:
         model.train()
         t0 = time.time()
-        dl = DataLoader(data.train_set, batch_size=1, shuffle=True,
-                        num_workers=cfg.num_workers,
-                        collate_fn=identity_collate,
-                        persistent_workers=cfg.num_workers > 0,
-                        prefetch_factor=4 if cfg.num_workers > 0 else None)
         tot_l, nb = 0.0, 0
-        for raw in tqdm(dl, desc=f" ep{ep}", leave=False, dynamic_ncols=True):
-            it = to_dev(raw, device)
+        for it in items(data, "train", device, cfg, shuffle=True,
+                        desc=f" ep{ep}"):
             optim.zero_grad(set_to_none=True)
 
             # Evolve once per timestamp, then cut the graph at E.

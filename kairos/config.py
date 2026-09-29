@@ -86,6 +86,9 @@ class KairosConfig:
     phase_off: bool = False
     query_off: bool = False
     prism: bool = False
+    cache: bool = False
+    cache_dir: str = "cache"
+    cache_workers: int = 0
     num_workers: int = 6
     reserve_gb: int = 0
     hits_at: Tuple = (1, 3, 10)
@@ -120,6 +123,11 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--struct_off", action="store_true")
     p.add_argument("--phase_off", action="store_true")
     p.add_argument("--query_off", action="store_true")
+    p.add_argument("--cache", action="store_true",
+                   help="precompute candidates once and serve them from GPU")
+    p.add_argument("--cache_dir", default="cache")
+    p.add_argument("--cache_workers", type=int, default=0,
+                   help="workers for the one-time build (0 = auto)")
     p.add_argument("--prism", action="store_true",
                    help="support-partitioned likelihood with a router")
     p.add_argument("--path", action="store_true",
