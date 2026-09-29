@@ -294,6 +294,10 @@ def main():
 
     # One .npz, or a directory of part_*.npz as external/patch_logcl.py
     # writes them (one per test snapshot, so no file holds the whole matrix).
+    if not os.path.exists(a.dump):
+        p.error(f"{a.dump} does not exist. If it is a LogCL dump, the run has "
+                f"not reached its final test yet: the directory is written "
+                f"only then.")
     if os.path.isdir(a.dump):
         parts = sorted(os.path.join(a.dump, f) for f in os.listdir(a.dump)
                        if f.endswith(".npz"))
