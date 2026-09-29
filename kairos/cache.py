@@ -212,8 +212,13 @@ def load(cfg, data, device, gpu_budget_frac=0.45):
     for split in ("train", "valid", "test"):
         off = np.load(os.path.join(d, split) + ".meta.npz")["off"]
         need += int(off[-1]) * (8 + 4 * N_FEAT)
+    # On a shared machine the default is host memory. Parking gigabytes of
+    # cache on a GPU other people also use is what turns someone else's
+    # launch into an OOM for both jobs; the host path costs one copy per
+    # timestamp and no computation. --cache_on_gpu opts in when the GPU is
+    # known to be ours alone.
     on_gpu = False
-    if device.type == "cuda":
+    if device.type == "cuda" and cfg.cache_on_gpu:
         free, _ = torch.cuda.mem_get_info(device)
         on_gpu = need < gpu_budget_frac * free
     print(f"[cache] {need/2**30:.2f} GB of candidates -> "

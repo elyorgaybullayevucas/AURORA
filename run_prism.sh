@@ -1,35 +1,43 @@
 #!/usr/bin/env bash
 #
-# Full PRISM sweep on all 8 GPUs: three seeds per dataset, candidate cache on.
+# PRISM sweep, three seeds per dataset, on a SHARED machine.
 #
-#   ./run_prism.sh              # build caches, then launch
-#   ./run_prism.sh --no-build   # caches already built
+#   ./run_prism.sh                     # up to 4 currently-idle GPUs
+#   MAX_GPUS=2 ./run_prism.sh          # take at most 2
+#   GPUS="0 3" ./run_prism.sh          # exactly these GPUs
+#   ./run_prism.sh --no-build          # caches already built
 #
-# Each GPU runs a QUEUE, not a single job: the short runs are chained behind
-# each other so no GPU idles while GDELT is still training.
+# Other people use these GPUs. So:
+#   - only GPUs that are idle right now (under 1 GB in use) are taken, and at
+#     most MAX_GPUS of them (default 4), never all eight;
+#   - the candidate cache stays in host memory (the default), so our GPU
+#     footprint is the model alone and a colleague's launch on the same card
+#     is less likely to OOM either job;
+#   - every job for a GPU runs in one queue, one at a time, so we never hold
+#     more cards than we were given.
 #
-#   GPU 0-2 : ICEWS18 seed 1/2/3, then YAGO seed 1/2/3
-#   GPU 3-5 : WIKI seed 1/2/3
-#   GPU 6-7 : GDELT seed 1/2
-#
-# Tags prism / prisms2 / prisms3 are three seeds of ONE configuration, which is
-# how collect.py groups them for mean +- std.
-#
-# Caches are built FIRST and to completion. Three runs of one dataset starting
-# together would otherwise all find the cache missing and write the same files
-# at once.
+# The 11 runs are spread over the chosen GPUs longest-first onto whichever
+# queue is least loaded, so the sweep ends as early as the GPU count allows.
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p logs checkpoints
 
-EXTRA="--prism --cache"          # label smoothing left at its default: on YAGO
-                                 # it beat the pure-factorisation variant
+MAX_GPUS="${MAX_GPUS:-4}"
+if [[ -z "${GPUS:-}" ]]; then
+  GPUS=$(nvidia-smi --query-gpu=index,memory.used --format=csv,noheader,nounits \
+         | awk -F', ' '$2 < 1024 {print $1}' | head -n "$MAX_GPUS" | tr '\n' ' ')
+fi
+if [[ -z "${GPUS// /}" ]]; then
+  echo "no idle GPU right now (all have >1 GB in use). Try later, or set GPUS=."
+  exit 1
+fi
+echo "using GPUs: $GPUS"
 
 if [[ "${1:-}" != "--no-build" ]]; then
   echo "building caches (CPU only) ..."
   pids=()
   for ds in YAGO ICEWS18 WIKI GDELT; do
-    python build_cache.py --dataset "$ds" --cache_workers 48 \
+    python build_cache.py --dataset "$ds" --cache_workers 32 \
       > "logs/cache_$ds.out" 2>&1 &
     pids+=($!)
   done
@@ -37,28 +45,40 @@ if [[ "${1:-}" != "--no-build" ]]; then
   tail -n 1 logs/cache_*.out
 fi
 
-run () {            # run <dataset> <tag> <seed> <gpu>
-  echo "python train_kairos.py --dataset $1 --tag $2 --seed $3 --gpu $4 $EXTRA \
-2>&1 | tee logs/prism_$1_$2.out"
-}
+# plan: longest-processing-time-first over the chosen GPUs
+python - "$GPUS" <<'PY' > logs/.prism_plan
+import sys
+gpus = sys.argv[1].split()
+# (dataset, tag, seed, rough minutes on a free A100, uncached)
+jobs = [("GDELT", "prism", 1, 420), ("GDELT", "prisms2", 2, 420),
+        ("WIKI", "prism", 1, 150), ("WIKI", "prisms2", 2, 150),
+        ("WIKI", "prisms3", 3, 150),
+        ("ICEWS18", "prism", 1, 75), ("ICEWS18", "prisms2", 2, 75),
+        ("ICEWS18", "prisms3", 3, 75),
+        ("YAGO", "prism", 1, 45), ("YAGO", "prisms2", 2, 45),
+        ("YAGO", "prisms3", 3, 45)]
+load = {g: 0 for g in gpus}
+queue = {g: [] for g in gpus}
+for ds, tag, seed, mins in sorted(jobs, key=lambda j: -j[3]):
+    g = min(load, key=load.get)
+    load[g] += mins
+    queue[g].append(f"{ds} {tag} {seed}")
+for g in gpus:
+    print(g + "|" + ";".join(queue[g]) + f"|{load[g]}")
+PY
 
-queue () {          # queue <session> <cmd1> [cmd2 ...]  -- run in order
-  local ses="$1"; shift
-  local chain; chain=$(printf '%s; ' "$@")
-  tmux new -d -s "$ses" "cd $(pwd) && $chain"
-  echo "  [start] $ses"
-}
-
-queue gpu0 "$(run ICEWS18 prism 1 0)"   "$(run YAGO prism 1 0)"
-queue gpu1 "$(run ICEWS18 prisms2 2 1)" "$(run YAGO prisms2 2 1)"
-queue gpu2 "$(run ICEWS18 prisms3 3 2)" "$(run YAGO prisms3 3 2)"
-queue gpu3 "$(run WIKI prism 1 3)"
-queue gpu4 "$(run WIKI prisms2 2 4)"
-queue gpu5 "$(run WIKI prisms3 3 5)"
-queue gpu6 "$(run GDELT prism 1 6)"
-queue gpu7 "$(run GDELT prisms2 2 7)"
+while IFS='|' read -r g jobs mins; do
+  chain=""
+  IFS=';' read -ra js <<< "$jobs"
+  for j in "${js[@]}"; do
+    read -r ds tag seed <<< "$j"
+    chain+="python train_kairos.py --dataset $ds --tag $tag --seed $seed \
+--gpu $g --prism --cache 2>&1 | tee logs/prism_${ds}_${tag}.out; "
+  done
+  tmux new -d -s "prism_gpu$g" "cd $(pwd) && $chain"
+  echo "  GPU $g  ~$((mins / 60))h$((mins % 60))m  : ${jobs//;/ -> }"
+done < logs/.prism_plan
 
 echo
-tmux ls
 echo "watch:   python status.py"
 echo "results: python collect.py"

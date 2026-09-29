@@ -89,6 +89,7 @@ class KairosConfig:
     cache: bool = False
     cache_dir: str = "cache"
     cache_workers: int = 0
+    cache_on_gpu: bool = False
     num_workers: int = 6
     reserve_gb: int = 0
     hits_at: Tuple = (1, 3, 10)
@@ -126,6 +127,8 @@ def parse_args(argv=None) -> KairosConfig:
     p.add_argument("--cache", action="store_true",
                    help="precompute candidates once and serve them from GPU")
     p.add_argument("--cache_dir", default="cache")
+    p.add_argument("--cache_on_gpu", action="store_true",
+                   help="put the cache on the GPU (only if nobody else uses it)")
     p.add_argument("--cache_workers", type=int, default=0,
                    help="workers for the one-time build (0 = auto)")
     p.add_argument("--prism", action="store_true",
