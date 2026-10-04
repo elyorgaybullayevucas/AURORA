@@ -17,6 +17,11 @@
 # Three seeds of each, on the two datasets where PRISM's gain is significant.
 # Caches must already exist (they do after run_prism.sh); --cache reuses them.
 set -euo pipefail
+# Cap CPU threads per process. PyTorch otherwise sizes its pools to all 255
+# cores of this shared machine; several runs then oversubscribe the CPU and
+# spin -- a CPU smoke test sat at 6800% CPU for 22 minutes doing one
+# minute of work. The GPU does the heavy lifting; 8 threads is plenty.
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-8}" MKL_NUM_THREADS="${MKL_NUM_THREADS:-8}"
 cd "$(dirname "$0")"
 mkdir -p logs checkpoints
 
