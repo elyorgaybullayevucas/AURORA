@@ -86,6 +86,8 @@ class KairosConfig:
     phase_off: bool = False
     query_off: bool = False
     prism: bool = False
+    router_const: bool = False
+    no_partition: bool = False
     cache: bool = False
     cache_dir: str = "cache"
     cache_workers: int = 0
@@ -131,6 +133,10 @@ def parse_args(argv=None) -> KairosConfig:
                    help="put the cache on the GPU (only if nobody else uses it)")
     p.add_argument("--cache_workers", type=int, default=0,
                    help="workers for the one-time build (0 = auto)")
+    p.add_argument("--router_const", action="store_true",
+                   help="PRISM ablation: one shared pi, no query routing")
+    p.add_argument("--no_partition", action="store_true",
+                   help="PRISM ablation: p_N over all entities, overlapping S")
     p.add_argument("--prism", action="store_true",
                    help="support-partitioned likelihood with a router")
     p.add_argument("--path", action="store_true",

@@ -86,6 +86,22 @@ class PRISM(KAIROS):
             nn.GELU(), nn.Dropout(cfg.dropout),
             nn.Linear(2 * dh, 1))
 
+        # ── ablations ────────────────────────────────────────────────────────
+        # The stratified results showed PRISM's gain lands on the queries WITH
+        # a history, not on the no-history stratum it was built for. These two
+        # switches separate the candidate explanations.
+        #
+        # router_const: pi is one learned scalar shared by every query. Tests
+        #   whether routing has to depend on the query at all.
+        # no_partition: p_N is normalised over ALL entities instead of the
+        #   complement of S, so the two distributions overlap and a support
+        #   entity is scored as pi*p_S + (1-pi)*p_N. Still an exact
+        #   distribution, but the likelihood no longer factorises. Tests
+        #   whether the DISJOINT normalisation is what matters.
+        self.router_const = getattr(cfg, "router_const", False)
+        self.no_partition = getattr(cfg, "no_partition", False)
+        self.rho0 = nn.Parameter(torch.zeros(()))
+
     # ── router ───────────────────────────────────────────────────────────────
 
     def route(self, E, subs, rels, sup_feat, sup_mask):
@@ -101,6 +117,8 @@ class PRISM(KAIROS):
         x = torch.cat([self.r_sub(E[subs]), self.r_rel(self.rel_emb(rels)),
                        mean, mx, size], -1)
         rho = self.router(x).squeeze(-1)
+        if self.router_const:
+            rho = self.rho0.expand_as(rho)
         # an empty support means the answer cannot be historical: pi = 0
         return rho.masked_fill(~sup_mask.any(1), -30.0)
 
@@ -129,13 +147,20 @@ class PRISM(KAIROS):
         logp_S = torch.log_softmax(s_S, dim=1)                     # (B, S)
 
         # p_N: structure only, normalised over the complement of S
-        logp_N = torch.log_softmax(f_struct.masked_fill(in_S, NEG), dim=1)
+        if self.no_partition:
+            logp_N = torch.log_softmax(f_struct, dim=1)
+        else:
+            logp_N = torch.log_softmax(f_struct.masked_fill(in_S, NEG), dim=1)
 
         rho = self.route(E, subs, rels, sup_feat, sup_mask).float()
         log_pi, log_1mpi = F.logsigmoid(rho), F.logsigmoid(-rho)
 
         out = log_1mpi.unsqueeze(1) + logp_N
         on_S = log_pi.unsqueeze(1) + logp_S
+        if self.no_partition:
+            # overlapping supports: a support entity also carries p_N's mass
+            on_S = torch.logaddexp(on_S, (log_1mpi.unsqueeze(1)
+                                          + logp_N.gather(1, ids)))
         out = out.index_put((rows, ents), on_S[rows, slots])
         if return_parts:
             return out, None, None

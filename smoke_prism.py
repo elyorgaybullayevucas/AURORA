@@ -125,3 +125,25 @@ for step in range(40):
 print(f"loss {first:.3f} -> {last:.3f}")
 assert last < first * 0.8, "PRISM does not fit a single snapshot"
 print("\nALL PRISM SMOKE TESTS PASSED")
+
+# ── 6. ablations stay exact distributions and still train ───────────────────
+for kw in ({"router_const": True}, {"no_partition": True}):
+    c = KairosConfig(**{**vars(cfg), **kw})
+    torch.manual_seed(0)
+    ma = PRISM(NE, NR, c)
+    E, _ = ma.evolve(it["hist"])
+    s_ = ma(E, *args).exp().sum(1)
+    assert torch.allclose(s_, torch.ones_like(s_), atol=1e-4), kw
+    if kw.get("router_const"):
+        r = ma.route(E, *[args[i] for i in (0, 1, 3, 4)])
+        live = it["sup_mask"].any(1)
+        assert torch.all(r[live] == r[live][0]), "router_const still varies"
+    o = torch.optim.Adam(ma.parameters(), lr=3e-3)
+    l0 = None
+    for _ in range(30):
+        o.zero_grad(); E, _ = ma.evolve(it["hist"])
+        l = F.nll_loss(ma(E, *args), it["objs"]); l.backward(); o.step()
+        l0 = l.item() if l0 is None else l0
+    assert l.item() < l0 * 0.8, kw
+    print(f"ablation {list(kw)[0]:<13} exact distribution, loss {l0:.3f} -> {l.item():.3f}")
+print("ABLATIONS OK")

@@ -49,9 +49,10 @@ def last_epoch(path):
 
 
 # Parameter counts of the CURRENT code, per (dataset, variant). PRISM adds a
-# router whose size does not depend on the vocabulary (+124,929 everywhere).
+# router whose size does not depend on the vocabulary (+124,930 everywhere,
+# including the scalar used by the --router_const ablation).
 CUR_PARAMS = {("YAGO", "full"): 6017518, ("ICEWS18", "full"): 8610328,
-              ("YAGO", "prism"): 6142447, ("ICEWS18", "prism"): 8735257}
+              ("YAGO", "prism"): 6142448, ("ICEWS18", "prism"): 8735258}
 
 
 def live_trainings():

@@ -325,7 +325,9 @@ def strata(sup_feat, sup_mask, sup_ids, objs):
 
 def main():
     cfg = parse_args()
-    variant = ("prism" if cfg.prism else
+    variant = (("prism-const" if cfg.router_const else
+                "prism-nopart" if cfg.no_partition else "prism")
+               if cfg.prism else
                "structural-only" if cfg.rec_off else
                "recurrence-only" if cfg.struct_off else
                "monotone-kernel" if cfg.phase_off else
