@@ -79,5 +79,7 @@ for k in r0:
 print(f"evaluate(): identical metrics with and without the cache "
       f"(MRR {r0['time_aware_filtered']['MRR']:.6f})")
 
-shutil.rmtree(cdir)
+# Windows refuses to delete a file that is still memory-mapped; Linux does
+# not care. The checks above are what matters, the cleanup is best-effort.
+shutil.rmtree(cdir, ignore_errors=True)
 print("\nALL CACHE SMOKE TESTS PASSED")

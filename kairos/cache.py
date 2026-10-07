@@ -147,15 +147,22 @@ class CachedSplit:
         self.set = snapset
         self.edges = edges_dev
         nnz = int(self.off[-1])
-        ids = np.fromfile(path + ".ids.bin", dtype=np.int64, count=nnz)
-        feat = np.fromfile(path + ".feat.bin", dtype=np.float32,
-                           count=nnz * self.nf).reshape(nnz, self.nf)
-        tgt = device if on_gpu else torch.device("cpu")
-        self.ids = torch.from_numpy(ids).to(tgt)
-        self.feat = torch.from_numpy(feat).to(tgt)
-        if not on_gpu and device.type == "cuda":
-            self.ids = self.ids.pin_memory()
-            self.feat = self.feat.pin_memory()
+        # Memory-mapped, read-only. The host path used to read the whole file
+        # into a private, pinned copy per process: three GDELT seeds started
+        # together each spent 30+ minutes pulling 55 GB off the same disk and
+        # held 166 GB of pinned RAM between them. A memory map is backed by the
+        # OS page cache, so the file is read once and SHARED by every process
+        # that maps it, and the run starts immediately; each timestamp then
+        # copies only its own slice to the device.
+        ids = np.memmap(path + ".ids.bin", dtype=np.int64, mode="r",
+                        shape=(nnz,))
+        feat = np.memmap(path + ".feat.bin", dtype=np.float32, mode="r",
+                         shape=(nnz, self.nf))
+        if on_gpu:
+            self.ids = torch.from_numpy(np.array(ids)).to(device)
+            self.feat = torch.from_numpy(np.array(feat)).to(device)
+        else:
+            self.ids, self.feat = ids, feat
         self.subs = torch.from_numpy(m["subs"]).to(device)
         self.rels = torch.from_numpy(m["rels"]).to(device)
         self.objs = torch.from_numpy(m["objs"]).to(device)
@@ -169,11 +176,13 @@ class CachedSplit:
         t = int(self.times[i])
         a, b = int(self.qs[i]), int(self.qe[i])
         lo, hi = int(self.off[a]), int(self.off[b])
-        ids = self.ids[lo:hi]
-        feat = self.feat[lo:hi]
-        if not self.on_gpu:
-            ids = ids.to(self.dev, non_blocking=True)
-            feat = feat.to(self.dev, non_blocking=True)
+        if self.on_gpu:
+            ids = self.ids[lo:hi]
+            feat = self.feat[lo:hi]
+        else:
+            # np.array copies the slice out of the (read-only) map
+            ids = torch.from_numpy(np.array(self.ids[lo:hi])).to(self.dev)
+            feat = torch.from_numpy(np.array(self.feat[lo:hi])).to(self.dev)
 
         # re-pad on the device: slot j of query q is flat entry off[q] + j
         cnt = self.off_t[a + 1:b + 1] - self.off_t[a:b]           # (n,)
@@ -222,7 +231,7 @@ def load(cfg, data, device, gpu_budget_frac=0.45):
         free, _ = torch.cuda.mem_get_info(device)
         on_gpu = need < gpu_budget_frac * free
     print(f"[cache] {need/2**30:.2f} GB of candidates -> "
-          f"{'GPU memory' if on_gpu else 'pinned host memory'}")
+          f"{'GPU memory' if on_gpu else 'memory-mapped host memory (shared)'}")
     sets = {"train": data.train_set, "valid": data.valid_set,
             "test": data.test_set}
     return {s: CachedSplit(os.path.join(d, s), sets[s], edges_dev, device,
