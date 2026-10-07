@@ -49,7 +49,22 @@ import torch
 
 from kairos.config import KairosConfig
 from kairos.data import KairosData
-from train_kairos import Meters, ranks_of
+from train_kairos import Meters, ranks_of, strata
+from kairos.data import N_FEAT
+
+
+
+def training_config(dataset):
+    """
+    The config training used for this dataset, per-dataset overrides included
+    (max_support, rel_topk, ...). KairosConfig(dataset=...) alone gives the
+    global defaults, and the support set -- hence the strata -- would differ
+    from the one the model was trained and evaluated with.
+    """
+    from kairos.config import DATASETS
+    fields = KairosConfig.__dataclass_fields__
+    over = {k: v for k, v in DATASETS.get(dataset, {}).items() if k in fields}
+    return KairosConfig(**{**over, "dataset": dataset})
 
 
 # this repository's own data, whatever directory the caller runs from
@@ -60,8 +75,8 @@ class ExternalScorer:
     """Applies our filter and our tie-aware ranking to someone else's scores."""
 
     def __init__(self, dataset, data_root=None, hits_at=(1, 3, 10),
-                 device="cpu"):
-        cfg = KairosConfig(dataset=dataset)
+                 device="cpu", stratify=False):
+        cfg = training_config(dataset)
         # KairosData reads cfg.data_dir. This used to set cfg.data_root, which
         # nothing reads, so the argument was silently ignored and the index
         # was built from whatever "data/" was relative to the CURRENT
@@ -78,6 +93,10 @@ class ExternalScorer:
         self.n_forward = 0
         self.n_inverse = 0
         self.n_skipped = 0
+        # Stratify the external model's ranks exactly as evaluate() stratifies
+        # ours: same support, same three-way partition, same tie handling.
+        self.stratify = stratify
+        self.cfg = cfg
 
     # ── one query ────────────────────────────────────────────────────────────
 
@@ -115,6 +134,22 @@ class ExternalScorer:
         r = ranks_of(s_ta, tgt)
         self.M.add("time_aware_filtered", r)
 
+        if self.stratify:
+            ids, F = self.index.candidates(int(sub), int(rel), int(t),
+                                           self.cfg.max_support)
+            k = max(1, len(ids))
+            sid = torch.zeros(1, k, dtype=torch.long)
+            sf = torch.zeros(1, k, F.shape[1] if len(ids) else N_FEAT)
+            sm = torch.zeros(1, k, dtype=torch.bool)
+            if len(ids):
+                sid[0, :len(ids)] = torch.from_numpy(ids.astype(np.int64))
+                sf[0, :len(ids)] = torch.from_numpy(F)
+                sm[0, :len(ids)] = True
+            g = int(strata(sf, sm, sid, torch.tensor([obj]))[0])
+            name = {0: "no_history", 1: "blocked", 2: "clean"}.get(g)
+            if name:
+                self.M.add(name, r.cpu())
+
         if inverse:
             self.n_inverse += 1
         else:
@@ -149,7 +184,8 @@ class ExternalScorer:
                 "same. Do not compare\n           these numbers until this is "
                 "resolved.")
             lines.append("  " + "-" * 62)
-        for name in ("raw", "time_aware_filtered"):
+        for name in ("raw", "time_aware_filtered", "blocked", "clean",
+                     "no_history"):
             if name not in r:
                 continue
             d = r[name]
@@ -183,7 +219,7 @@ def self_check(dataset, tag=None, variant="full", data_root="data",
     from train_kairos import to_dev, identity_collate
     from torch.utils.data import DataLoader
 
-    cfg = KairosConfig(dataset=dataset)
+    cfg = training_config(dataset)
     if data_root:
         cfg.data_dir = os.path.abspath(data_root)
     dev = T.device(device if T.cuda.is_available() else "cpu")
@@ -271,6 +307,9 @@ def main():
     p.add_argument("--dataset", required=True)
     p.add_argument("--data_root", default=None,
                    help="defaults to this repository's data/")
+    p.add_argument("--stratify", action="store_true",
+                   help="also report blocked / clean / no_history, exactly "
+                        "as evaluate() partitions our own test set")
     p.add_argument("--self_check", action="store_true",
                    help="validate the bridge against our own evaluator and "
                         "exit; run this before trusting any external number")
@@ -305,7 +344,7 @@ def main():
             p.error(f"no .npz files in {a.dump}")
     else:
         parts = [a.dump]
-    sc = ExternalScorer(a.dataset, a.data_root)
+    sc = ExternalScorer(a.dataset, a.data_root, stratify=a.stratify)
     done = 0
     for k, part in enumerate(parts):
         z = np.load(part)
