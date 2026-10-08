@@ -211,7 +211,7 @@ def evaluate(model, data, split, device, cfg, verbose=True, stratify=False):
                     verbose=verbose):
         with autocast("cuda", dtype=torch.bfloat16,
                       enabled=device.type == "cuda"):
-            E, _ = model.evolve(it["hist"])
+            E, _ = model.evolve(it["hist"], it["t"])
         n = it["subs"].numel()
         for a in range(0, n, cfg.query_chunk):
             b = min(a + cfg.query_chunk, n)
@@ -384,6 +384,8 @@ def main():
         from kairos.cache import load as load_cache
         data.cache = load_cache(cfg, data, device)
     model = Model(data.num_entities, data.num_relations, cfg).to(device)
+    if cfg.global_hist:
+        model.set_timeline(data.edges_by_t, device)
     print(f"[model] params="
           f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
 
@@ -436,7 +438,7 @@ def main():
             # is then backpropagated once through that accumulated gradient.
             # Mathematically identical, memory bounded by a single chunk.
             with autocast("cuda", dtype=torch.bfloat16, enabled=use_cuda):
-                E, aux = model.evolve(it["hist"])
+                E, aux = model.evolve(it["hist"], it["t"])
             E_d = E.detach().requires_grad_(True)
 
             n = it["subs"].numel()

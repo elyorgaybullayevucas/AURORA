@@ -147,3 +147,42 @@ for kw in ({"router_const": True}, {"no_partition": True}):
     assert l.item() < l0 * 0.8, kw
     print(f"ablation {list(kw)[0]:<13} exact distribution, loss {l0:.3f} -> {l.item():.3f}")
 print("ABLATIONS OK")
+
+# ── 7. global history context: no leakage, starts as a no-op, learns ───────
+cg = KairosConfig(**{**vars(cfg), "global_hist": True, "router_const": True})
+torch.manual_seed(0)
+mg = PRISM(NE, NR, cg); mg.set_timeline(data.edges_by_t, torch.device("cpu"))
+t0 = it["t"]
+base = PRISM(NE, NR, KairosConfig(**{**vars(cfg), "router_const": True}))
+base.load_state_dict({k: v for k, v in mg.state_dict().items()
+                      if k in base.state_dict()}, strict=False)
+with torch.no_grad():
+    Eg, _ = mg.evolve(it["hist"], t0)
+    Eb, _ = base.evolve(it["hist"], t0)
+assert torch.allclose(Eg, Eb), "zero-initialised global context is not a no-op"
+torch.nn.init.normal_(mg.glob.proj.weight, std=0.1)
+with torch.no_grad():
+    Ea, _ = mg.evolve(it["hist"], t0)
+# corrupt every fact at or after t0: the context at t0 must not move
+src, rel, dst, tt = mg._tl
+fut = tt >= t0
+mg._tl = (src, rel, torch.where(fut, (dst + 7) % NE, dst), tt)
+with torch.no_grad():
+    Ef, _ = mg.evolve(it["hist"], t0)
+assert torch.equal(Ea, Ef), "global context reads facts at or after t"
+# ... and corrupting the past MUST move it
+past = tt < t0
+mg._tl = (src, rel, torch.where(past, (dst + 7) % NE, dst), tt)
+with torch.no_grad():
+    Ep, _ = mg.evolve(it["hist"], t0)
+assert not torch.allclose(Ea, Ep), "global context ignores the past"
+mg._tl = (src, rel, dst, tt)
+o = torch.optim.Adam(mg.parameters(), lr=3e-3); l0 = None
+for _ in range(30):
+    o.zero_grad(); E, _ = mg.evolve(it["hist"], t0)
+    l = F.nll_loss(mg(E, *args), it["objs"]); l.backward(); o.step()
+    l0 = l.item() if l0 is None else l0
+assert mg.glob.proj.weight.abs().sum() > 0 and l.item() < l0 * 0.8
+print(f"global history: no-op at init, reads only t' < t, trains "
+      f"({l0:.3f} -> {l.item():.3f})")
+print("GLOBAL HISTORY OK")

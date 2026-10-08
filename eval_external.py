@@ -259,7 +259,7 @@ def self_check(dataset, tag=None, variant="full", data_root="data",
             if n_ts >= limit:
                 break
             it = to_dev(raw, dev)
-            E, _ = model.evolve(it["hist"])
+            E, _ = model.evolve(it["hist"], it["t"])
             lg = model(E, it["subs"], it["rels"], it["sup_ids"],
                        it["sup_feat"], it["sup_mask"]).float()
             for i in range(it["subs"].numel()):

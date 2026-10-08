@@ -67,6 +67,7 @@ iterations of this work. There is no mixing gate, so there is no gate to
 collapse.
 """
 import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -232,6 +233,55 @@ class ConvTransE(nn.Module):
         return x @ table.T + bias
 
 
+# ── global history context ──────────────────────────────────────────────────
+
+class GlobalHistory(nn.Module):
+    """
+    Every entity's FULL observed history before t, summarised in one hop.
+
+    Stratifying LogCL's ICEWS18 ranks under our own protocol put the whole
+    MRR gap between the two models in one place. Where the answer has a
+    history with the subject, this model leads by 17 MRR; where it has none
+    -- half of all queries -- LogCL leads by 7.8, and that alone outweighs
+    everything else. Those answers are, almost by definition, entities that
+    have not interacted with the subject recently, and the structural branch
+    sees only the last H snapshots: an entity quiet over that window enters
+    the decoder with nothing but its static embedding. LogCL's advantage is
+    a global history encoder.
+
+    This is the smallest version of that idea that fits the existing model:
+    for each entity o, the mean over every fact (o, r, x, t') with t' < t of
+    E0[x] + R[r] -- all of its observed neighbours and how it met them, over
+    the whole timeline, not a window -- projected and added to the initial
+    state the evolver starts from and gates back to. It is one index_add over
+    the facts before t, chunked so that GDELT's millions of edges never sit
+    in memory at once, and it is order-free, so shuffled training is fine.
+    Only facts strictly before the query timestamp are read.
+
+    The projection starts at zero, so a fresh model with this enabled is
+    exactly the model without it, and the data decides how much to use.
+    """
+
+    CHUNK = 200_000
+
+    def __init__(self, d):
+        super().__init__()
+        self.ln = nn.LayerNorm(d)
+        self.proj = nn.Linear(d, d)
+        nn.init.zeros_(self.proj.weight)
+        nn.init.zeros_(self.proj.bias)
+
+    def forward(self, E0, R, src, rel, dst, k):
+        n, d = E0.size(0), E0.size(1)
+        acc = E0.new_zeros(n, d)
+        for a in range(0, k, self.CHUNK):
+            b = min(a + self.CHUNK, k)
+            acc = acc.index_add(0, src[a:b], E0[dst[a:b]] + R[rel[a:b]])
+        deg = torch.bincount(src[:k], minlength=n).to(acc.dtype)
+        mean = acc / deg.clamp(min=1.0).unsqueeze(1)
+        return self.proj(self.ln(mean)) * (deg > 0).unsqueeze(1).to(acc.dtype)
+
+
 # ── KAIROS ───────────────────────────────────────────────────────────────────
 
 class KAIROS(nn.Module):
@@ -254,6 +304,8 @@ class KAIROS(nn.Module):
 
         self.evolver = Evolver(d, cfg.gcn_layers, cfg.dropout)
         self.decoder = ConvTransE(d, cfg.conv_channels, 3, cfg.dropout)
+        self.glob = GlobalHistory(d) if getattr(cfg, "global_hist", False)             else None
+        self._tl = None              # (src, rel, dst, t) sorted by t; set_timeline
 
         # ── path branch: the third intensity, no entity embeddings ───────────
         self.path = None if self.path_off else PathBranch(
@@ -337,10 +389,31 @@ class KAIROS(nn.Module):
 
     # ── branches ─────────────────────────────────────────────────────────────
 
-    def evolve(self, history):
+    def set_timeline(self, edges_by_t, device):
+        """
+        Hand the model every fact of the timeline, sorted by time, for the
+        global history context. Facts at or after a query's timestamp are
+        never read: evolve() cuts the arrays at searchsorted(t, 'left').
+        """
+        ts = sorted(edges_by_t)
+        cat = lambda i: torch.from_numpy(
+            np.concatenate([edges_by_t[t][i] for t in ts]).astype(np.int64))
+        tt = np.concatenate([np.full(len(edges_by_t[t][0]), t, np.int64)
+                             for t in ts])
+        self._tl = tuple(x.to(device) for x in
+                         (cat(0), cat(1), cat(2), torch.from_numpy(tt)))
+
+    def evolve(self, history, t=None):
         if self.struct_off:
             return self.ent_emb.weight, self.ent_emb.weight.new_zeros(())
-        return self.evolver(self.ent_emb.weight, self.rel_emb.weight, history)
+        E0 = self.ent_emb.weight
+        if self.glob is not None and self._tl is not None and t is not None:
+            src, rel, dst, tt = self._tl
+            k = int(torch.searchsorted(tt, torch.tensor(int(t), device=tt.device),
+                                       right=False))
+            if k > 0:
+                E0 = E0 + self.glob(E0, self.rel_emb.weight, src, rel, dst, k)
+        return self.evolver(E0, self.rel_emb.weight, history)
 
     def structural(self, E, subs, rels):
         if self.struct_off:
