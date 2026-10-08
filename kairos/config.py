@@ -89,6 +89,7 @@ class KairosConfig:
     router_const: bool = False
     no_partition: bool = False
     global_hist: bool = False
+    global_layers: int = 1
     cache: bool = False
     cache_dir: str = "cache"
     cache_workers: int = 0
@@ -136,6 +137,8 @@ def parse_args(argv=None) -> KairosConfig:
                    help="workers for the one-time build (0 = auto)")
     p.add_argument("--router_const", action="store_true",
                    help="PRISM ablation: one shared pi, no query routing")
+    p.add_argument("--global_layers", type=int, default=None,
+                   help="hops of global history aggregation (default 1)")
     p.add_argument("--global_hist", action="store_true",
                    help="add each entity's full pre-t history to the evolver's start state")
     p.add_argument("--no_partition", action="store_true",
