@@ -278,11 +278,17 @@ class GlobalHistory(nn.Module):
         nn.init.zeros_(self.proj.bias)
 
     def _hop(self, X, R, src, rel, dst, k, deg):
-        acc = X.new_zeros(X.size(0), X.size(1))
+        # The accumulator must have the dtype X[dst] + R[rel] promotes to.
+        # Under bf16 autocast the second hop's X comes out of a Linear in
+        # bf16 while the relation table stays fp32, so the message is fp32
+        # and an accumulator in X's dtype makes index_add refuse it. The same
+        # mismatch was fixed in MultiSpanLayer at the start of this project.
+        acc = X.new_zeros(X.size(0), X.size(1),
+                          dtype=torch.promote_types(X.dtype, R.dtype))
         for a in range(0, k, self.CHUNK):
             b = min(a + self.CHUNK, k)
             acc = acc.index_add(0, src[a:b], X[dst[a:b]] + R[rel[a:b]])
-        return acc / deg.clamp(min=1.0).unsqueeze(1)
+        return acc / deg.clamp(min=1.0).unsqueeze(1).to(acc.dtype)
 
     def forward(self, E0, R, src, rel, dst, k):
         n = E0.size(0)

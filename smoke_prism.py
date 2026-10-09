@@ -187,4 +187,20 @@ for GL in (1, 2):
     assert mg.glob.proj.weight.abs().sum() > 0 and l.item() < l0 * 0.8
     print(f"global history ({GL} hop): no-op at init, reads only t' < t, trains "
           f"({l0:.3f} -> {l.item():.3f})")
+# Under bf16 autocast, as training runs on the GPU. The two-hop variant
+# crashed on the server with a dtype mismatch that the fp32 checks above
+# could not see.
+for GL in (1, 2):
+    ca = KairosConfig(**{**vars(cfg), "global_hist": True, "router_const": True,
+                         "global_layers": GL})
+    ma = PRISM(NE, NR, ca); ma.set_timeline(data.edges_by_t, torch.device("cpu"))
+    torch.nn.init.normal_(ma.glob.proj.weight, std=0.1)
+    for lin in ma.glob.mix:
+        torch.nn.init.normal_(lin.weight, std=0.1)
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        E, _ = ma.evolve(it["hist"], it["t"])
+        l = F.nll_loss(ma(E, *args).float(), it["objs"])
+    l.backward()
+    assert torch.isfinite(l) and ma.glob.proj.weight.grad is not None
+    print(f"global history ({GL} hop) under bf16 autocast: forward/backward OK")
 print("GLOBAL HISTORY OK")
