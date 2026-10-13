@@ -291,7 +291,9 @@ The structural expert follows prior work~\cite{dimnet,regcn}. Each of the last
 $H$ snapshots is encoded by three relational GCN layers with mean and max
 aggregation~\cite{pna}, a cross-time link at equal layer depth, and a split
 into active and stable factors with a drift penalty on the stable factor; a
-GRU carries the state across snapshots and yields the entity table $E$. A
+GRU carries the active factor across snapshots, and the two factors are
+recombined and gated against the initial embeddings to give the entity table
+$E$. A
 ConvTransE decoder~\cite{convtranse} scores every entity against
 $[E[s]\,\|\,R[r]]$, giving $f_{\mathrm{str}}(o)$. Because batches are
 snapshots whose sizes vary by two orders of magnitude, the decoder uses
@@ -316,14 +318,15 @@ where $p_S$ is a softmax over $S$ of
 $\log\bigl(e^{f_{\mathrm{str}}(o)} + e^{f_{\mathrm{rec}}(o)}\bigr)$, so
 structure still informs the ordering inside the support, $p_N$ is a softmax of
 $f_{\mathrm{str}}$ over the complement of $S$, and $\pi = \sigma(\rho)$ is a
-single learned scalar. This is an exact distribution over all entities, and
+single learned scalar (set to $0$ when $S$ is empty). This is an exact distribution over all entities, and
 training minimises its negative log-likelihood.
 
 A single softmax over $\log(e^{f_{\mathrm{str}}}+e^{f_{\mathrm{rec}}})$ is the
 special case in which both experts share one normalisation. That model must
 express, with one set of logits, both how the historical candidates compare
-with one another and how all of them compare with tens of thousands of entities
-that have no history at all. The mixture removes that coupling, in the same way
+with one another (at most 256 of them) and how all of them compare with the
+thousands of entities (7.7k to 23k on our benchmarks) that have no history at
+all. The mixture removes that coupling, in the same way
 a mixture of softmaxes relaxes the rank limit of a single one~\cite{mos}.
 Section~\ref{sec:ablation} isolates this effect from everything else that
 changes between the two.
