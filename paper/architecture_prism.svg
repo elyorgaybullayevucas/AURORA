@@ -249,7 +249,7 @@
   <text x="222" y="114" font-size="12" font-weight="700" fill="#2f6aa5">N \ S</text>
 </g>
 <text class="lab" x="1340" y="128">Support partition</text>
-<text class="cap" x="1340" y="144">S: past objects of (s, r), of s, and top objects of r</text>
+<text class="cap" x="1340" y="144">S: candidates from the history before t</text>
 <text class="cap" x="1340" y="158">— at most 256</text>
 <text class="cap" x="1340" y="172">N \ S: everything else</text>
 <text class="cap" x="1340" y="186">— 7.7k to 23k entities</text>
