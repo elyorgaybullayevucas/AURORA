@@ -1,256 +1,334 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 880" width="1600" height="880" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 860" width="1600" height="860" font-family="Helvetica, Arial, sans-serif">
 <defs>
-  <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1f2a33"/></marker>
-  <marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2c5f8a"/></marker>
-  <marker id="aH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9a6514"/></marker>
-  <marker id="aM" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6b3fa0"/></marker>
-  <marker id="ae" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#93b4d0"/></marker>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1b2a3a" flood-opacity="0.14"/>
+  </filter>
+  <filter id="sh2" x="-20%" y="-20%" width="140%" height="150%">
+    <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#1b2a3a" flood-opacity="0.22"/>
+  </filter>
+  <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b8fc7"/><stop offset="1" stop-color="#2f6aa5"/></linearGradient>
+  <linearGradient id="gBlueL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef5fc"/><stop offset="1" stop-color="#dbe9f6"/></linearGradient>
+  <linearGradient id="gAmb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0b860"/><stop offset="1" stop-color="#cf8a1c"/></linearGradient>
+  <linearGradient id="gAmbL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf6ea"/><stop offset="1" stop-color="#f8e8cc"/></linearGradient>
+  <linearGradient id="gPur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6fd0"/><stop offset="1" stop-color="#6b3fa0"/></linearGradient>
+  <linearGradient id="gPurL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7f2fd"/><stop offset="1" stop-color="#ebe0f8"/></linearGradient>
+  <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2604f"/><stop offset="1" stop-color="#b8322a"/></linearGradient>
+  <linearGradient id="gPlane" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e8f1fa"/></linearGradient>
+  <radialGradient id="gUni" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3edf7"/></radialGradient>
+  <radialGradient id="gS" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#fff8ea"/><stop offset="1" stop-color="#f7dda8"/></radialGradient>
+  <marker id="mB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2f6aa5"/></marker>
+  <marker id="mA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b8741a"/></marker>
+  <marker id="mP" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6b3fa0"/></marker>
+  <marker id="mK" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3b4752"/></marker>
   <style>
-    .ttl{font-size:17px;font-weight:700;fill:#111c25}
-    .sub{font-size:11px;fill:#5d6870}
-    .band{font-size:10.5px;font-weight:700;letter-spacing:1.4px}
-    .h{font-size:12.5px;font-weight:700;fill:#111c25}
-    .t{font-size:11px;fill:#1c262e}
-    .s{font-size:9.6px;fill:#5d6870}
-    .m{font-size:11.5px;font-style:italic;fill:#1c262e}
-    .mb{font-size:12.5px;font-style:italic;font-weight:700;fill:#1c262e}
-    .nl{font-size:7.5px;font-weight:700;text-anchor:middle}
-    .bx{fill:#fff;stroke:#3c4a55;stroke-width:1.2}
-    .ar{stroke:#1f2a33;stroke-width:1.4;fill:none;marker-end:url(#a)}
-    .arB{stroke:#2c5f8a;stroke-width:1.6;fill:none;marker-end:url(#aB)}
-    .arH{stroke:#9a6514;stroke-width:1.6;fill:none;marker-end:url(#aH)}
-    .arM{stroke:#6b3fa0;stroke-width:1.8;fill:none;marker-end:url(#aM)}
-    .eg{stroke:#93b4d0;stroke-width:1;fill:none;marker-end:url(#ae)}
+    .T{font-size:19px;font-weight:700;fill:#15212c}
+    .lab{font-size:13px;font-weight:700;fill:#15212c}
+    .labB{font-size:13px;font-weight:700;fill:#2f6aa5}
+    .labA{font-size:13px;font-weight:700;fill:#9a5f10}
+    .labP{font-size:13px;font-weight:700;fill:#6b3fa0}
+    .cap{font-size:10.5px;fill:#5b6670}
+    .eq{font-size:13px;font-style:italic;fill:#15212c}
+    .eqs{font-size:9px;font-style:italic}
+    .tag{font-size:10px;font-weight:700;letter-spacing:1.6px}
+    .flowB{stroke:#2f6aa5;stroke-width:2.2;fill:none;marker-end:url(#mB)}
+    .flowA{stroke:#b8741a;stroke-width:2.2;fill:none;marker-end:url(#mA)}
+    .flowP{stroke:#6b3fa0;stroke-width:2.4;fill:none;marker-end:url(#mP)}
+    .thin{stroke:#3b4752;stroke-width:1.3;fill:none;marker-end:url(#mK)}
+    .edge{stroke:#7aa3c8;stroke-width:1.1}
   </style>
-  <g id="snap">
-    <rect x="0" y="0" width="112" height="128" rx="10" fill="#fff" stroke="#b6c6d2"/>
-    <g class="eg">
-      <path d="M22 26 L62 48"/><path d="M22 26 L24 62"/><path d="M62 48 L84 28"/>
-      <path d="M62 48 L50 82"/><path d="M24 62 L50 82"/><path d="M24 62 L24 104"/>
-      <path d="M50 82 L88 104"/><path d="M24 104 L88 104"/>
-    </g>
-    <circle cx="22" cy="26" r="8" fill="#1d4e79"/><text class="nl" x="22" y="29" fill="#fff">s</text>
-    <circle cx="84" cy="28" r="7" fill="#a9c8e0"/><circle cx="62" cy="48" r="7" fill="#a9c8e0"/>
-    <circle cx="24" cy="62" r="7" fill="#a9c8e0"/><circle cx="50" cy="82" r="7" fill="#a9c8e0"/>
-    <circle cx="24" cy="104" r="7" fill="#a9c8e0"/><circle cx="88" cy="104" r="7" fill="#a9c8e0"/>
+  <g id="g1">
+    <line class="edge" x1="20" y1="18" x2="58" y2="36"/><line class="edge" x1="20" y1="18" x2="24" y2="58"/>
+    <line class="edge" x1="58" y1="36" x2="88" y2="20"/><line class="edge" x1="58" y1="36" x2="52" y2="70"/>
+    <line class="edge" x1="24" y1="58" x2="52" y2="70"/><line class="edge" x1="52" y1="70" x2="92" y2="62"/>
+    <circle cx="20" cy="18" r="6.5" fill="#1d4e79"/>
+    <circle cx="58" cy="36" r="5.5" fill="#9fc1e0"/><circle cx="88" cy="20" r="5.5" fill="#9fc1e0"/>
+    <circle cx="24" cy="58" r="5.5" fill="#9fc1e0"/><circle cx="52" cy="70" r="5.5" fill="#9fc1e0"/>
+    <circle cx="92" cy="62" r="5.5" fill="#9fc1e0"/>
+  </g>
+  <g id="g2">
+    <line class="edge" x1="20" y1="18" x2="62" y2="28"/><line class="edge" x1="20" y1="18" x2="30" y2="62"/>
+    <line class="edge" x1="62" y1="28" x2="90" y2="48"/><line class="edge" x1="30" y1="62" x2="70" y2="70"/>
+    <line class="edge" x1="62" y1="28" x2="70" y2="70"/><line class="edge" x1="90" y1="48" x2="70" y2="70"/>
+    <circle cx="20" cy="18" r="6.5" fill="#1d4e79"/>
+    <circle cx="62" cy="28" r="5.5" fill="#9fc1e0"/><circle cx="90" cy="48" r="5.5" fill="#9fc1e0"/>
+    <circle cx="30" cy="62" r="5.5" fill="#9fc1e0"/><circle cx="70" cy="70" r="5.5" fill="#9fc1e0"/>
+  </g>
+  <g id="plane1">
+    <path d="M18 0 L136 0 L118 86 L0 86 Z" fill="url(#gPlane)" stroke="#9db8d2" stroke-width="1.2"/>
+    <g transform="translate(14 6) skewX(-12)"><use href="#g1"/></g>
+  </g>
+  <g id="plane2">
+    <path d="M18 0 L136 0 L118 86 L0 86 Z" fill="url(#gPlane)" stroke="#9db8d2" stroke-width="1.2"/>
+    <g transform="translate(14 6) skewX(-12)"><use href="#g2"/></g>
   </g>
 </defs>
-<rect width="1600" height="880" fill="#fff"/>
 
-<text class="ttl" x="24" y="30">PRISM: an unconstrained history expert and a structural expert, normalised separately and mixed</text>
-<text class="sub" x="24" y="48">query (s, r, ?, t) · only facts strictly before t are used · d = 200 · three GCN layers · history window H = 10 (5 on GDELT)</text>
+<rect width="1600" height="860" fill="#ffffff"/>
+<text class="T" x="28" y="36">PRISM</text>
+<text class="cap" x="100" y="36" font-size="13">— an unconstrained history expert and a structural expert, normalised separately and mixed into one exact distribution</text>
 
-<!-- ═════════════ STRUCTURAL EXPERT (left) ═════════════ -->
-<rect x="18" y="64" width="560" height="452" rx="12" fill="#eef4fa" stroke="#bcd3e6"/>
-<text class="band" x="34" y="84" fill="#2c5f8a">STRUCTURAL EXPERT</text>
+<!-- track backgrounds -->
+<rect x="20" y="56" width="1000" height="330" rx="18" fill="url(#gBlueL)" filter="url(#sh)"/>
+<rect x="20" y="404" width="1000" height="330" rx="18" fill="url(#gAmbL)" filter="url(#sh)"/>
+<rect x="1040" y="56" width="540" height="678" rx="18" fill="url(#gPurL)" filter="url(#sh)"/>
+<text class="tag" x="42" y="80" fill="#2f6aa5">STRUCTURAL EXPERT</text>
+<text class="tag" x="42" y="428" fill="#9a5f10">HISTORY EXPERT</text>
+<text class="tag" x="1062" y="80" fill="#6b3fa0">SEPARATE NORMALISATION  ·  MIXTURE</text>
 
-<line x1="40" y1="100" x2="556" y2="100" stroke="#1f2a33" stroke-width="1.3" marker-end="url(#a)"/>
-<text class="m" x="58" y="96">t−H</text><text class="m" x="208" y="96">t−H+1</text>
-<text class="m" x="394" y="96">t−1</text><text class="s" x="520" y="94">time</text>
-
-<use href="#snap" x="34" y="108"/>
-<use href="#snap" x="184" y="108"/>
-<text class="h" x="330" y="176">···</text>
-<use href="#snap" x="370" y="108"/>
-
-<!-- evolver row -->
-<g>
-  <rect class="bx" x="34" y="256" width="112" height="46" rx="5"/>
-  <text class="t" x="44" y="275">GCN ×3, mean‖max</text><text class="s" x="44" y="292">active ‖ stable</text>
-  <rect class="bx" x="184" y="256" width="112" height="46" rx="5"/>
-  <text class="t" x="194" y="275">GCN ×3, mean‖max</text><text class="s" x="194" y="292">active ‖ stable</text>
-  <rect class="bx" x="370" y="256" width="112" height="46" rx="5"/>
-  <text class="t" x="380" y="275">GCN ×3, mean‖max</text><text class="s" x="380" y="292">active ‖ stable</text>
+<!-- ═══ STRUCTURAL TRACK ═══ -->
+<g transform="translate(46 116)">
+  <!-- time axis drawn first, so the snapshot planes sit on top of it -->
+  <path d="M10 214 L262 98" stroke="#3b4752" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#mK)" fill="none"/>
+  <use href="#plane1" x="0" y="96"/>
+  <use href="#plane2" x="56" y="50"/>
+  <use href="#plane1" x="112" y="4"/>
+  <text class="cap" x="2" y="200">t−H</text>
+  <text class="cap" x="252" y="20" font-weight="700">t−1</text>
+  <text class="cap" x="150" y="172" transform="rotate(-24 150 172)">time</text>
 </g>
-<path class="ar" d="M90 238 L90 252"/><path class="ar" d="M240 238 L240 252"/><path class="ar" d="M426 238 L426 252"/>
-<path class="ar" d="M148 279 L180 279"/><path class="ar" d="M298 279 L330 279"/><path class="ar" d="M340 279 L366 279"/>
-<text class="s" x="150" y="272">GRU</text><text class="s" x="300" y="272">GRU</text>
+<text class="labB" x="60" y="364">Snapshots before t</text>
+<text class="cap" x="60" y="378">s = query subject</text>
 
-<!-- entity state -->
-<rect class="bx" x="500" y="246" width="66" height="70" rx="5"/>
-<g stroke="#7fa3c0" stroke-width="0.7">
-  <rect x="510" y="256" width="46" height="8" fill="#dfeaf4"/><rect x="510" y="264" width="46" height="8" fill="#c9dcef"/>
-  <rect x="510" y="272" width="46" height="8" fill="#e8f1f8"/><rect x="510" y="280" width="46" height="8" fill="#d4e4f2"/>
-  <rect x="510" y="288" width="46" height="8" fill="#dfeaf4"/>
+<path class="flowB" d="M300 238 L338 238"/>
+<g transform="translate(350 120)">
+  <g filter="url(#sh2)">
+    <path d="M14 0 L124 0 L110 40 L0 40 Z" fill="#cfe1f2" stroke="#2f6aa5" stroke-width="1.2"/>
+    <path d="M14 56 L124 56 L110 96 L0 96 Z" fill="#b5d0ea" stroke="#2f6aa5" stroke-width="1.2"/>
+    <path d="M14 112 L124 112 L110 152 L0 152 Z" fill="#94bbe0" stroke="#2f6aa5" stroke-width="1.2"/>
+  </g>
+  <g fill="#ffffff" stroke="#2f6aa5" stroke-width="0.9">
+    <circle cx="34" cy="20" r="4"/><circle cx="56" cy="20" r="4"/><circle cx="78" cy="20" r="4"/><circle cx="100" cy="20" r="4"/>
+    <circle cx="34" cy="76" r="4"/><circle cx="56" cy="76" r="4"/><circle cx="78" cy="76" r="4"/><circle cx="100" cy="76" r="4"/>
+    <circle cx="34" cy="132" r="4"/><circle cx="56" cy="132" r="4"/><circle cx="78" cy="132" r="4"/><circle cx="100" cy="132" r="4"/>
+  </g>
+  <g stroke="#2f6aa5" stroke-width="0.7" opacity="0.55">
+    <line x1="34" y1="24" x2="56" y2="72"/><line x1="56" y1="24" x2="34" y2="72"/><line x1="78" y1="24" x2="100" y2="72"/><line x1="100" y1="24" x2="78" y2="72"/>
+    <line x1="34" y1="80" x2="56" y2="128"/><line x1="56" y1="80" x2="78" y2="128"/><line x1="78" y1="80" x2="100" y2="128"/><line x1="100" y1="80" x2="56" y2="128"/>
+  </g>
+  <text class="cap" x="132" y="24">layer 1</text><text class="cap" x="132" y="80">layer 2</text><text class="cap" x="132" y="136">layer 3</text>
+  <rect x="10" y="170" width="54" height="16" rx="3" fill="#e2604f" opacity="0.85"/>
+  <rect x="66" y="170" width="54" height="16" rx="3" fill="#2f6aa5" opacity="0.85"/>
+  <text x="20" y="182" font-size="9.5" fill="#fff" font-weight="700">active</text>
+  <text x="76" y="182" font-size="9.5" fill="#fff" font-weight="700">stable</text>
+  <g transform="translate(160 176)">
+    <circle cx="0" cy="0" r="17" fill="#ffffff" stroke="#2f6aa5" stroke-width="1.6" filter="url(#sh2)"/>
+    <text x="-12" y="4" font-size="10" font-weight="700" fill="#2f6aa5">GRU</text>
+    <path d="M14 -10 A 22 22 0 1 1 -2 -22" stroke="#2f6aa5" stroke-width="1.4" fill="none" marker-end="url(#mB)"/>
+  </g>
 </g>
-<text class="m" x="519" y="310">E(t)</text>
-<path class="ar" d="M484 279 L496 279"/>
+<text class="labB" x="360" y="364">Multi-span evolver</text>
+<text class="cap" x="360" y="378">cross-time GCN · disentangled state</text>
 
-<!-- optional global history -->
-<rect x="34" y="324" width="450" height="66" rx="8" fill="#fbfdff" stroke="#2c5f8a" stroke-width="1.2" stroke-dasharray="6 4"/>
-<text class="h" x="46" y="344">Global history context <tspan class="s" font-weight="400">(optional)</tspan></text>
-<text class="t" x="46" y="362">for every entity: mean over ALL its facts (o, r, x, t′), t′ &lt; t, of  E₀[x] + R[r]</text>
-<text class="s" x="46" y="379">beyond the H-snapshot window · zero-initialised projection added to E₀ · never reads t′ ≥ t</text>
-<path class="arB" d="M90 322 L90 306" stroke-dasharray="4 3"/>
-
-<!-- decoder -->
-<rect class="bx" x="300" y="410" width="266" height="54" rx="6"/>
-<text class="h" x="312" y="431">ConvTransE decoder</text>
-<text class="s" x="312" y="450">[ E(t)[s] ‖ R[r] ] → conv → fc → LayerNorm → · E(t)ᵀ</text>
-<path class="ar" d="M533 318 L533 406"/>
-<text class="mb" x="312" y="498">f_str(o) for every entity o</text>
-<path class="arB" d="M433 466 L433 484"/>
-
-<!-- ═════════════ QUERY + PARTITION (centre) ═════════════ -->
-<rect x="596" y="64" width="370" height="452" rx="12" fill="#f7f7fa" stroke="#d3d3dd"/>
-<text class="band" x="612" y="84" fill="#3c4a55">QUERY AND SUPPORT PARTITION</text>
-
-<rect class="bx" x="612" y="98" width="150" height="48" rx="6"/>
-<text class="h" x="626" y="118">query</text><text class="mb" x="626" y="137">(s, r, ?, t)</text>
-<text class="s" x="778" y="112">support S(q): entities that</text>
-<text class="s" x="778" y="125">met s under r, met s at all,</text>
-<text class="s" x="778" y="138">or are frequent objects of r</text>
-
-<!-- entity universe split -->
-<rect x="612" y="160" width="338" height="216" rx="10" fill="#fff" stroke="#3c4a55" stroke-width="1.2"/>
-<text class="s" x="624" y="176">all N entities</text>
-<rect x="622" y="184" width="118" height="182" rx="8" fill="#fdf1dc" stroke="#9a6514" stroke-width="1.4"/>
-<text class="h" x="634" y="204" fill="#9a6514">S</text>
-<text class="s" x="652" y="204">has a history</text>
-<g fill="#e3b36a" stroke="#9a6514" stroke-width="0.8">
-  <circle cx="648" cy="228" r="7"/><circle cx="676" cy="240" r="7"/><circle cx="706" cy="226" r="7"/>
-  <circle cx="654" cy="268" r="7"/><circle cx="694" cy="276" r="7"/><circle cx="716" cy="300" r="7"/>
-  <circle cx="660" cy="316" r="7"/><circle cx="690" cy="340" r="7"/>
+<path class="flowB" d="M560 238 L596 238"/>
+<g transform="translate(606 170)" filter="url(#sh2)">
+  <path d="M0 20 L20 0 L84 0 L64 20 Z" fill="#9fc1e0" stroke="#2f6aa5" stroke-width="1"/>
+  <path d="M64 20 L84 0 L84 116 L64 136 Z" fill="#5b8fc7" stroke="#2f6aa5" stroke-width="1"/>
+  <rect x="0" y="20" width="64" height="116" fill="#dbe9f6" stroke="#2f6aa5" stroke-width="1"/>
+  <g stroke="#7aa3c8" stroke-width="0.6">
+    <line x1="0" y1="40" x2="64" y2="40"/><line x1="0" y1="60" x2="64" y2="60"/><line x1="0" y1="80" x2="64" y2="80"/>
+    <line x1="0" y1="100" x2="64" y2="100"/><line x1="0" y1="120" x2="64" y2="120"/>
+    <line x1="16" y1="20" x2="16" y2="136"/><line x1="32" y1="20" x2="32" y2="136"/><line x1="48" y1="20" x2="48" y2="136"/>
+  </g>
+  <rect x="0" y="60" width="64" height="20" fill="#e2604f" opacity="0.35"/>
 </g>
-<circle cx="676" cy="240" r="9" fill="none" stroke="#c0392b" stroke-width="2"/>
-<text class="s" x="630" y="358">a few hundred</text>
-<rect x="752" y="184" width="188" height="182" rx="8" fill="#e6f0f9" stroke="#2c5f8a" stroke-width="1.4"/>
-<text class="h" x="764" y="204" fill="#2c5f8a">N \ S</text>
-<text class="s" x="808" y="204">no history with (s, r)</text>
-<g fill="#a9c8e0" stroke="#2c5f8a" stroke-width="0.6">
-  <circle cx="772" cy="226" r="5"/><circle cx="796" cy="232" r="5"/><circle cx="822" cy="224" r="5"/><circle cx="850" cy="236" r="5"/>
-  <circle cx="878" cy="226" r="5"/><circle cx="906" cy="234" r="5"/><circle cx="780" cy="258" r="5"/><circle cx="808" cy="264" r="5"/>
-  <circle cx="836" cy="256" r="5"/><circle cx="864" cy="266" r="5"/><circle cx="892" cy="258" r="5"/><circle cx="918" cy="268" r="5"/>
-  <circle cx="774" cy="292" r="5"/><circle cx="800" cy="298" r="5"/><circle cx="828" cy="290" r="5"/><circle cx="856" cy="300" r="5"/>
-  <circle cx="884" cy="292" r="5"/><circle cx="912" cy="300" r="5"/><circle cx="786" cy="326" r="5"/><circle cx="814" cy="332" r="5"/>
-  <circle cx="842" cy="324" r="5"/><circle cx="870" cy="334" r="5"/><circle cx="898" cy="326" r="5"/>
+<text class="eq" x="616" y="336">E(t) ∈ ℝ<tspan class="eqs" dy="-5">N×d</tspan></text>
+<text x="604" y="364" font-weight="700" fill="#2f6aa5" font-size="13">Entity states</text>
+
+<g transform="translate(330 64)">
+  <rect x="0" y="0" width="300" height="34" rx="17" fill="#ffffff" stroke="#2f6aa5" stroke-dasharray="5 4" stroke-width="1.2"/>
+  <g fill="#9fc1e0"><circle cx="20" cy="17" r="3"/><circle cx="34" cy="17" r="3.4" opacity="0.8"/><circle cx="50" cy="17" r="3.8" opacity="0.65"/><circle cx="68" cy="17" r="4.2" opacity="0.5"/></g>
+  <text x="84" y="14" font-size="11" font-weight="700" fill="#2f6aa5">global history</text>
+  <text x="84" y="27" font-size="9.5" fill="#5b6670">all facts with t′ &lt; t · optional</text>
+  <path d="M240 34 C 240 52, 300 56, 300 100" stroke="#2f6aa5" stroke-width="1.4" stroke-dasharray="4 3" fill="none" marker-end="url(#mB)"/>
 </g>
-<text class="s" x="764" y="358">tens of thousands</text>
 
-<text class="t" x="612" y="400">The two sets are scored by different evidence and</text>
-<text class="t" x="612" y="416">have very different sizes — so PRISM normalises</text>
-<text class="t" x="612" y="432">each one on its own, instead of making both compete</text>
-<text class="t" x="612" y="448">inside one softmax over all N entities.</text>
-<text class="s" x="612" y="474">Ablation (3 seeds): separate normalisation +0.37 MRR</text>
-<text class="s" x="612" y="488">on WIKI, +0.67 on ICEWS18 over one shared softmax,</text>
-<text class="s" x="612" y="502">independent of how the mixing weight π is computed.</text>
-
-
-<!-- ═════════════ HISTORY EXPERT (right) ═════════════ -->
-<rect x="984" y="64" width="598" height="452" rx="12" fill="#fdf6ea" stroke="#e6cfa3"/>
-<text class="band" x="1000" y="84" fill="#9a6514">HISTORY EXPERT — UNCONSTRAINED RECURRENCE INTENSITY</text>
-
-<rect class="bx" x="1000" y="98" width="418" height="178" rx="6"/>
-<text class="h" x="1012" y="117">Observed occurrence history of each candidate o ∈ S</text>
-<line x1="1396" y1="126" x2="1396" y2="266" stroke="#c0392b" stroke-width="1.4" stroke-dasharray="4 3"/>
-<text class="s" x="1346" y="138" fill="#c0392b">now t</text>
-<g stroke="#9a6514" stroke-width="1"><line x1="1046" y1="160" x2="1392" y2="160"/><line x1="1046" y1="198" x2="1392" y2="198"/><line x1="1046" y1="236" x2="1392" y2="236"/></g>
-<g fill="#c0392b"><rect x="1070" y="152" width="3.2" height="16"/><rect x="1140" y="152" width="3.2" height="16"/><rect x="1210" y="152" width="3.2" height="16"/><rect x="1280" y="152" width="3.2" height="16"/></g>
-<text class="t" x="1012" y="164" fill="#c0392b">o★</text>
-<text class="s" x="1150" y="181" fill="#c0392b">regular gaps, last seen earlier</text>
-<g fill="#1d4e79"><rect x="1106" y="190" width="3.2" height="16"/><rect x="1116" y="190" width="3.2" height="16"/><rect x="1176" y="190" width="3.2" height="16"/><rect x="1188" y="190" width="3.2" height="16"/><rect x="1310" y="190" width="3.2" height="16"/><rect x="1370" y="190" width="3.2" height="16"/></g>
-<text class="t" x="1012" y="202" fill="#1d4e79">o′</text>
-<text class="s" x="1196" y="220" fill="#1d4e79">more frequent and more recent, bursty</text>
-<g fill="#9a6514"><rect x="1094" y="228" width="3.2" height="16"/><rect x="1236" y="228" width="3.2" height="16"/><rect x="1330" y="228" width="3.2" height="16"/></g>
-<text class="t" x="1012" y="240">o₃</text>
-<text class="s" x="1012" y="257">13 statistics per candidate: count, Δt and mean gap of (s,r,o), (s,·,o), (r,·,o);</text>
-<text class="s" x="1012" y="270">dispersion of the gaps, span, rate, has-history</text>
-
-<rect x="1432" y="98" width="136" height="178" rx="6" fill="#fff" stroke="#c0392b" stroke-width="1.4"/>
-<text class="h" x="1442" y="117" fill="#c0392b">Proposition 1</text>
-<text class="s" x="1442" y="135">Any score non-decreasing</text>
-<text class="s" x="1442" y="148">in count and non-increasing</text>
-<text class="s" x="1442" y="161">in Δt ranks o′ at least as</text>
-<text class="s" x="1442" y="174">high as o★, whatever its</text>
-<text class="s" x="1442" y="187">parameters.</text>
-<text class="s" x="1442" y="208" fill="#7a2a20">Such queries are 15.8–</text>
-<text class="s" x="1442" y="221" fill="#7a2a20">41.6% of the test sets,</text>
-<text class="s" x="1442" y="234" fill="#7a2a20">measured with no model.</text>
-<text class="s" x="1442" y="256">The expert below is not</text>
-<text class="s" x="1442" y="269">bound by it.</text>
-
-<rect class="bx" x="1000" y="292" width="300" height="94" rx="6"/>
-<text class="h" x="1012" y="312">MLP over the full statistics</text>
-<text class="m" x="1012" y="333">[ LN(φ_o) ‖ u(r) ‖ v(o) ‖ w(E[s]) ]</text>
-<text class="s" x="1012" y="352">two Linear–LayerNorm–GELU blocks → scalar</text>
-<text class="s" x="1012" y="368">not monotone in Δt, not separable in count;</text>
-<text class="s" x="1012" y="381">contains log a + p·log(1+c) − b·Δt as a special case</text>
-<path class="arH" d="M1150 278 L1150 288"/>
-<text class="mb" x="1320" y="344">f_rec(o),  o ∈ S</text>
-<path class="arH" d="M1302 338 L1316 338"/>
-<text class="s" x="1000" y="410">Restricting this expert to the monotone form, everything else fixed:</text>
-<text class="t" x="1000" y="428">−1.9 MRR (YAGO) · −8.1 (WIKI) · −5.6 (ICEWS18) · −4.6 (GDELT)</text>
-
-<!-- ═════════════ NORMALISATION + MIXTURE (bottom) ═════════════ -->
-<!-- feeds: f_str down into p_N; f_str along the channel into p_S; f_rec down into p_S -->
-<path class="arB" d="M400 504 L400 562"/>
-<path class="arB" d="M566 524 L1300 524 L1300 562" stroke-dasharray="5 3"/>
-<text class="s" x="1308" y="552" fill="#2c5f8a">f_str on S</text>
-<path class="arH" d="M1426 340 L1520 340 L1520 562"/>
-
-<rect x="18" y="534" width="1564" height="328" rx="12" fill="#f6f2fb" stroke="#d6c8ea"/>
-<text class="band" x="34" y="554" fill="#6b3fa0">SEPARATE NORMALISATION AND MIXTURE — THE PREDICTIVE DISTRIBUTION</text>
-
-<!-- p_N, under the structural expert -->
-<rect class="bx" x="34" y="566" width="420" height="214" rx="8"/>
-<text class="h" x="48" y="588" fill="#2c5f8a">Structural expert, normalised on N \ S</text>
-<text class="m" x="48" y="609">p_N(o) = softmax over o ∉ S of f_str(o)</text>
-<g fill="#4a7ba7">
-  <rect x="60" y="630" width="16" height="104"/><rect x="82" y="668" width="16" height="66"/><rect x="104" y="690" width="16" height="44"/>
-  <rect x="126" y="704" width="16" height="30"/><rect x="148" y="713" width="16" height="21"/><rect x="170" y="719" width="16" height="15"/>
-  <rect x="192" y="723" width="16" height="11"/><rect x="214" y="726" width="16" height="8"/><rect x="236" y="728" width="16" height="6"/>
-  <rect x="258" y="730" width="16" height="4"/><rect x="280" y="731" width="16" height="3"/>
+<path class="flowB" d="M700 238 L732 238"/>
+<g transform="translate(742 160)">
+  <rect x="0" y="40" width="70" height="12" rx="2" fill="#1d4e79"/><rect x="0" y="56" width="70" height="12" rx="2" fill="#9fc1e0" stroke="#2f6aa5" stroke-width="0.8"/>
+  <text x="74" y="50" font-size="9" fill="#1d4e79" font-style="italic">E[s]</text><text x="74" y="66" font-size="9" fill="#2f6aa5" font-style="italic">R[r]</text>
+  <g transform="translate(14 88)">
+    <rect x="0" y="0" width="12" height="12" fill="#5b8fc7"/><rect x="14" y="0" width="12" height="12" fill="#9fc1e0"/><rect x="28" y="0" width="12" height="12" fill="#5b8fc7"/>
+    <rect x="0" y="14" width="12" height="12" fill="#9fc1e0"/><rect x="14" y="14" width="12" height="12" fill="#5b8fc7"/><rect x="28" y="14" width="12" height="12" fill="#9fc1e0"/>
+  </g>
+  <text class="cap" x="60" y="104">conv</text>
+  <g transform="translate(110 30)" filter="url(#sh2)">
+    <rect x="16" y="0" width="54" height="92" rx="3" fill="#dbe9f6" stroke="#2f6aa5"/>
+    <rect x="8" y="8" width="54" height="92" rx="3" fill="#c2d9ef" stroke="#2f6aa5"/>
+    <rect x="0" y="16" width="54" height="92" rx="3" fill="#a5c6e6" stroke="#2f6aa5"/>
+  </g>
+  <text class="cap" x="112" y="160">feature maps</text>
+  <path d="M84 78 L104 78" class="thin"/>
 </g>
-<line x1="54" y1="734" x2="440" y2="734" stroke="#1f2a33"/>
-<text class="s" x="306" y="728">… tens of thousands</text>
-<text class="s" x="48" y="752">sums to 1 over entities with no history: structure ranks</text>
-<text class="s" x="48" y="766">only the candidates that it alone can score</text>
+<text class="labB" x="744" y="364">ConvTransE decoder</text>
+<text class="cap" x="744" y="378">scores every entity</text>
+<path class="flowB" d="M938 238 L1000 238 L1000 342 L1054 342"/>
+<text class="eq" x="944" y="230">f</text><text class="eqs" x="951" y="234">str</text>
 
-<!-- p_S, under the history expert -->
-<rect class="bx" x="1146" y="566" width="420" height="214" rx="8"/>
-<text class="h" x="1160" y="588" fill="#9a6514">History expert, normalised on S</text>
-<text class="m" x="1160" y="609">p_S(o) = softmax over o ∈ S of log( e<tspan dy="-5" font-size="8">f_str</tspan><tspan dy="5"> + e</tspan><tspan dy="-5" font-size="8">f_rec</tspan><tspan dy="5"> )</tspan></text>
-<g>
-  <rect x="1172" y="630" width="26" height="104" fill="#c0392b"/><rect x="1206" y="664" width="26" height="70" fill="#e3b36a"/>
-  <rect x="1240" y="692" width="26" height="42" fill="#e3b36a"/><rect x="1274" y="708" width="26" height="26" fill="#e3b36a"/>
-  <rect x="1308" y="718" width="26" height="16" fill="#e3b36a"/><rect x="1342" y="724" width="26" height="10" fill="#e3b36a"/>
-  <rect x="1376" y="728" width="26" height="6" fill="#e3b36a"/>
+<!-- ═══ HISTORY TRACK ═══ -->
+<g transform="translate(44 446)">
+  <rect x="0" y="0" width="128" height="42" rx="21" fill="#ffffff" stroke="#b8741a" stroke-width="1.4" filter="url(#sh2)"/>
+  <text class="eq" x="18" y="26">(s, r, ?, t)</text>
 </g>
-<line x1="1166" y1="734" x2="1552" y2="734" stroke="#1f2a33"/>
-<text class="s" x="1176" y="626" fill="#c0392b">o★</text>
-<text class="s" x="1160" y="752">sums to 1 over S: historical candidates compete only</text>
-<text class="s" x="1160" y="766">with each other, never with the entities outside S</text>
-
-<!-- mixture, in the middle -->
-<rect x="474" y="566" width="652" height="214" rx="8" fill="#fff" stroke="#6b3fa0" stroke-width="2"/>
-<text class="h" x="490" y="588" fill="#6b3fa0">Mixture: an exact distribution over all N entities</text>
-<text class="mb" x="490" y="612">P(o | q) = π · p_S(o)  if o ∈ S,     (1 − π) · p_N(o)  otherwise</text>
-<text class="s" x="490" y="630">π = σ(ρ): one learned scalar; a query-dependent router does no better</text>
-<g>
-  <rect x="504" y="648" width="22" height="86" fill="#c0392b"/><rect x="532" y="678" width="22" height="56" fill="#e3b36a"/>
-  <rect x="560" y="700" width="22" height="34" fill="#e3b36a"/><rect x="588" y="713" width="22" height="21" fill="#e3b36a"/>
-  <rect x="616" y="721" width="22" height="13" fill="#e3b36a"/>
-  <rect x="652" y="700" width="18" height="34" fill="#4a7ba7"/><rect x="674" y="714" width="18" height="20" fill="#4a7ba7"/>
-  <rect x="696" y="721" width="18" height="13" fill="#4a7ba7"/><rect x="718" y="725" width="18" height="9" fill="#4a7ba7"/>
-  <rect x="740" y="728" width="18" height="6" fill="#4a7ba7"/><rect x="762" y="730" width="18" height="4" fill="#4a7ba7"/>
+<g transform="translate(44 508)">
+  <rect x="0" y="0" width="402" height="176" rx="12" fill="#ffffff" filter="url(#sh2)"/>
+  <line x1="372" y1="10" x2="372" y2="166" stroke="#c0392b" stroke-width="1.6" stroke-dasharray="4 3"/>
+  <text x="352" y="22" font-size="10" fill="#c0392b" font-weight="700">t</text>
+  <g stroke="#d9b06a" stroke-width="2" stroke-linecap="round">
+    <line x1="56" y1="42" x2="366" y2="42"/><line x1="56" y1="88" x2="366" y2="88"/><line x1="56" y1="134" x2="366" y2="134"/>
+  </g>
+  <g fill="url(#gRed)"><rect x="82" y="32" width="5" height="20" rx="2"/><rect x="152" y="32" width="5" height="20" rx="2"/><rect x="222" y="32" width="5" height="20" rx="2"/><rect x="292" y="32" width="5" height="20" rx="2"/></g>
+  <g fill="#1d4e79"><rect x="118" y="78" width="5" height="20" rx="2"/><rect x="130" y="78" width="5" height="20" rx="2"/><rect x="190" y="78" width="5" height="20" rx="2"/><rect x="202" y="78" width="5" height="20" rx="2"/><rect x="318" y="78" width="5" height="20" rx="2"/><rect x="352" y="78" width="5" height="20" rx="2"/></g>
+  <g fill="#cf8a1c"><rect x="104" y="124" width="5" height="20" rx="2"/><rect x="246" y="124" width="5" height="20" rx="2"/><rect x="336" y="124" width="5" height="20" rx="2"/></g>
+  <circle cx="26" cy="42" r="12" fill="url(#gRed)"/><text x="19" y="47" font-size="11" fill="#fff" font-weight="700">o★</text>
+  <circle cx="26" cy="88" r="12" fill="#1d4e79"/><text x="20" y="93" font-size="11" fill="#fff" font-weight="700">o′</text>
+  <circle cx="26" cy="134" r="12" fill="url(#gAmb)"/><text x="19" y="139" font-size="11" fill="#fff" font-weight="700">o₃</text>
+  <text x="58" y="160" font-size="9.5" fill="#5b6670">o′ is more frequent and more recent than o★: every monotone scorer ranks it higher</text>
 </g>
-<line x1="498" y1="734" x2="800" y2="734" stroke="#1f2a33"/>
-<text class="s" x="508" y="752" fill="#9a6514">π · p_S</text><text class="s" x="668" y="752" fill="#2c5f8a">(1 − π) · p_N</text>
-<text class="s" x="490" y="770">the answer o★ is ranked against all N entities by P(o | q)</text>
+<text class="labA" x="60" y="710">Candidate histories, o ∈ S</text>
+<text class="cap" x="60" y="724">observed strictly before t</text>
 
-<rect x="830" y="644" width="282" height="124" rx="6" fill="#faf7fd" stroke="#d6c8ea"/>
-<text class="h" x="842" y="664">Training and inference</text>
-<text class="t" x="842" y="684">loss = −log P(o★ | q)</text>
-<text class="s" x="842" y="700">one exactly normalised likelihood,</text>
-<text class="s" x="842" y="713">no auxiliary losses</text>
-<text class="t" x="842" y="734">evaluation: time-aware filtered,</text>
-<text class="s" x="842" y="750">ties at their average position;</text>
-<text class="s" x="842" y="763">one softmax is the special case</text>
+<path class="flowA" d="M452 596 L486 596"/>
+<g transform="translate(496 530)" filter="url(#sh2)">
+  <rect x="-8" y="-10" width="176" height="148" rx="10" fill="#ffffff"/>
+</g>
+<g transform="translate(496 530)">
+  <g stroke="#ffffff" stroke-width="1">
+    <rect x="0" y="0" width="12" height="28" fill="#c0392b" opacity="0.9"/><rect x="12" y="0" width="12" height="28" fill="#e9a94a"/><rect x="24" y="0" width="12" height="28" fill="#f3d39c"/><rect x="36" y="0" width="12" height="28" fill="#cf8a1c"/><rect x="48" y="0" width="12" height="28" fill="#f7e2bb"/><rect x="60" y="0" width="12" height="28" fill="#e9a94a"/><rect x="72" y="0" width="12" height="28" fill="#cf8a1c"/><rect x="84" y="0" width="12" height="28" fill="#f3d39c"/><rect x="96" y="0" width="12" height="28" fill="#e9a94a"/><rect x="108" y="0" width="12" height="28" fill="#f7e2bb"/><rect x="120" y="0" width="12" height="28" fill="#cf8a1c"/><rect x="132" y="0" width="12" height="28" fill="#f3d39c"/><rect x="144" y="0" width="12" height="28" fill="#e9a94a"/>
+    <rect x="0" y="30" width="12" height="28" fill="#1d4e79" opacity="0.9"/><rect x="12" y="30" width="12" height="28" fill="#cf8a1c"/><rect x="24" y="30" width="12" height="28" fill="#e9a94a"/><rect x="36" y="30" width="12" height="28" fill="#f7e2bb"/><rect x="48" y="30" width="12" height="28" fill="#cf8a1c"/><rect x="60" y="30" width="12" height="28" fill="#f3d39c"/><rect x="72" y="30" width="12" height="28" fill="#e9a94a"/><rect x="84" y="30" width="12" height="28" fill="#cf8a1c"/><rect x="96" y="30" width="12" height="28" fill="#f7e2bb"/><rect x="108" y="30" width="12" height="28" fill="#e9a94a"/><rect x="120" y="30" width="12" height="28" fill="#f3d39c"/><rect x="132" y="30" width="12" height="28" fill="#cf8a1c"/><rect x="144" y="30" width="12" height="28" fill="#f7e2bb"/>
+    <rect x="0" y="60" width="12" height="28" fill="#cf8a1c"/><rect x="12" y="60" width="12" height="28" fill="#f3d39c"/><rect x="24" y="60" width="12" height="28" fill="#cf8a1c"/><rect x="36" y="60" width="12" height="28" fill="#e9a94a"/><rect x="48" y="60" width="12" height="28" fill="#f3d39c"/><rect x="60" y="60" width="12" height="28" fill="#cf8a1c"/><rect x="72" y="60" width="12" height="28" fill="#f7e2bb"/><rect x="84" y="60" width="12" height="28" fill="#e9a94a"/><rect x="96" y="60" width="12" height="28" fill="#cf8a1c"/><rect x="108" y="60" width="12" height="28" fill="#f3d39c"/><rect x="120" y="60" width="12" height="28" fill="#e9a94a"/><rect x="132" y="60" width="12" height="28" fill="#f7e2bb"/><rect x="144" y="60" width="12" height="28" fill="#cf8a1c"/>
+    <rect x="0" y="90" width="12" height="28" fill="#f3d39c"/><rect x="12" y="90" width="12" height="28" fill="#e9a94a"/><rect x="24" y="90" width="12" height="28" fill="#f7e2bb"/><rect x="36" y="90" width="12" height="28" fill="#cf8a1c"/><rect x="48" y="90" width="12" height="28" fill="#e9a94a"/><rect x="60" y="90" width="12" height="28" fill="#f7e2bb"/><rect x="72" y="90" width="12" height="28" fill="#cf8a1c"/><rect x="84" y="90" width="12" height="28" fill="#f3d39c"/><rect x="96" y="90" width="12" height="28" fill="#e9a94a"/><rect x="108" y="90" width="12" height="28" fill="#cf8a1c"/><rect x="120" y="90" width="12" height="28" fill="#f7e2bb"/><rect x="132" y="90" width="12" height="28" fill="#e9a94a"/><rect x="144" y="90" width="12" height="28" fill="#f3d39c"/>
+  </g>
+</g>
+<text class="labA" x="496" y="710">13 inter-arrival statistics</text>
+<text class="cap" x="496" y="724">count · Δt · mean gap · dispersion · …</text>
 
-<path class="arM" d="M456 690 L470 690"/>
-<path class="arM" d="M1144 690 L1130 690"/>
+<path class="flowA" d="M680 596 L712 596"/>
+<g transform="translate(722 520)">
+  <g stroke="#cf8a1c" stroke-width="0.6" opacity="0.5">
+    <line x1="10" y1="10" x2="70" y2="20"/><line x1="10" y1="10" x2="70" y2="60"/><line x1="10" y1="10" x2="70" y2="100"/><line x1="10" y1="10" x2="70" y2="140"/>
+    <line x1="10" y1="50" x2="70" y2="20"/><line x1="10" y1="50" x2="70" y2="60"/><line x1="10" y1="50" x2="70" y2="100"/><line x1="10" y1="50" x2="70" y2="140"/>
+    <line x1="10" y1="90" x2="70" y2="20"/><line x1="10" y1="90" x2="70" y2="60"/><line x1="10" y1="90" x2="70" y2="100"/><line x1="10" y1="90" x2="70" y2="140"/>
+    <line x1="10" y1="130" x2="70" y2="20"/><line x1="10" y1="130" x2="70" y2="60"/><line x1="10" y1="130" x2="70" y2="100"/><line x1="10" y1="130" x2="70" y2="140"/>
+    <line x1="10" y1="150" x2="70" y2="60"/><line x1="10" y1="150" x2="70" y2="140"/>
+    <line x1="70" y1="20" x2="130" y2="40"/><line x1="70" y1="60" x2="130" y2="40"/><line x1="70" y1="100" x2="130" y2="40"/><line x1="70" y1="140" x2="130" y2="40"/>
+    <line x1="70" y1="20" x2="130" y2="120"/><line x1="70" y1="60" x2="130" y2="120"/><line x1="70" y1="100" x2="130" y2="120"/><line x1="70" y1="140" x2="130" y2="120"/>
+    <line x1="130" y1="40" x2="176" y2="80"/><line x1="130" y1="120" x2="176" y2="80"/>
+  </g>
+  <g fill="#ffffff" stroke="#cf8a1c" stroke-width="1.6" filter="url(#sh2)">
+    <circle cx="10" cy="10" r="7"/><circle cx="10" cy="50" r="7"/><circle cx="10" cy="90" r="7"/><circle cx="10" cy="130" r="7"/><circle cx="10" cy="150" r="5"/>
+    <circle cx="70" cy="20" r="8"/><circle cx="70" cy="60" r="8"/><circle cx="70" cy="100" r="8"/><circle cx="70" cy="140" r="8"/>
+    <circle cx="130" cy="40" r="8"/><circle cx="130" cy="120" r="8"/>
+  </g>
+  <circle cx="176" cy="80" r="11" fill="url(#gAmb)" filter="url(#sh2)"/>
+</g>
+<text class="labA" x="722" y="710">Unconstrained MLP</text>
+<text class="cap" x="722" y="724">not monotone in Δt · outside Prop. 1</text>
+<path class="flowA" d="M910 600 L1000 600 L1000 552 L1054 552"/>
+<text class="eq" x="944" y="592">f</text><text class="eqs" x="951" y="596">rec</text>
 
-<text class="s" x="34" y="808">A single softmax scores S and N \ S in one normalisation, so one set of logits must order the historical candidates among themselves and, at the same time,</text>
-<text class="s" x="34" y="822">against every entity without a history. Normalising the two separately removes that coupling — the mechanism by which a mixture of softmaxes relaxes a single one.</text>
-<text class="s" x="34" y="848">Colours: blue = structural evidence · amber = history evidence · red = the answer o★ · purple = the mixture.</text>
+<g transform="translate(818 444)">
+  <rect x="0" y="0" width="186" height="58" rx="10" fill="#ffffff" stroke="#c0392b" stroke-width="1.4" filter="url(#sh2)"/>
+  <text x="12" y="20" font-size="11.5" font-weight="700" fill="#c0392b">Proposition 1</text>
+  <text x="12" y="36" font-size="9.5" fill="#5b6670">no monotone scorer ranks o★ above o′</text>
+  <text x="12" y="50" font-size="9.5" fill="#5b6670">15.8–41.6% of test queries</text>
+</g>
+
+<!-- ═══ RIGHT PANEL ═══ -->
+<g transform="translate(1066 98)">
+  <ellipse cx="128" cy="62" rx="126" ry="58" fill="url(#gUni)" stroke="#2f6aa5" stroke-width="1.3" filter="url(#sh2)"/>
+  <g fill="#9fc1e0">
+    <circle cx="30" cy="50" r="3.2"/><circle cx="44" cy="76" r="3.2"/><circle cx="58" cy="36" r="3.2"/><circle cx="70" cy="92" r="3.2"/>
+    <circle cx="84" cy="22" r="3.2"/><circle cx="96" cy="70" r="3.2"/><circle cx="162" cy="24" r="3.2"/><circle cx="176" cy="98" r="3.2"/>
+    <circle cx="190" cy="40" r="3.2"/><circle cx="204" cy="78" r="3.2"/><circle cx="218" cy="54" r="3.2"/><circle cx="232" cy="68" r="3.2"/>
+    <circle cx="112" cy="104" r="3.2"/><circle cx="146" cy="108" r="3.2"/><circle cx="40" cy="62" r="3.2"/><circle cx="210" cy="30" r="3.2"/>
+  </g>
+  <ellipse cx="132" cy="60" rx="34" ry="28" fill="url(#gS)" stroke="#b8741a" stroke-width="1.6"/>
+  <g fill="url(#gAmb)"><circle cx="118" cy="50" r="4"/><circle cx="140" cy="46" r="4"/><circle cx="126" cy="70" r="4"/><circle cx="150" cy="66" r="4"/></g>
+  <circle cx="140" cy="46" r="6.5" fill="none" stroke="#c0392b" stroke-width="2"/>
+  <text x="156" y="94" font-size="12" font-weight="700" fill="#9a5f10">S</text>
+  <text x="222" y="114" font-size="12" font-weight="700" fill="#2f6aa5">N \ S</text>
+</g>
+<text class="lab" x="1340" y="128">Support partition</text>
+<text class="cap" x="1340" y="144">S: entities with a history for (s, r)</text>
+<text class="cap" x="1340" y="158">— a few hundred</text>
+<text class="cap" x="1340" y="172">N \ S: everything else</text>
+<text class="cap" x="1340" y="186">— tens of thousands</text>
+
+<g transform="translate(1066 248)">
+  <rect x="0" y="0" width="236" height="188" rx="12" fill="#ffffff" filter="url(#sh2)"/>
+  <text class="labB" x="14" y="24">Structure on N \ S</text>
+  <text class="eq" x="14" y="46">p<tspan class="eqs" dy="3">N</tspan><tspan dy="-3">(o) = softmax</tspan><tspan class="eqs" dy="4">o∉S</tspan><tspan dy="-4"> f</tspan><tspan class="eqs" dy="3">str</tspan></text>
+  <g fill="url(#gBlue)">
+    <rect x="18" y="72" width="13" height="80" rx="2"/><rect x="35" y="98" width="13" height="54" rx="2"/><rect x="52" y="114" width="13" height="38" rx="2"/>
+    <rect x="69" y="124" width="13" height="28" rx="2"/><rect x="86" y="131" width="13" height="21" rx="2"/><rect x="103" y="136" width="13" height="16" rx="2"/>
+    <rect x="120" y="140" width="13" height="12" rx="2"/><rect x="137" y="143" width="13" height="9" rx="2"/><rect x="154" y="145" width="13" height="7" rx="2"/>
+    <rect x="171" y="147" width="13" height="5" rx="2"/><rect x="188" y="148" width="13" height="4" rx="2"/>
+  </g>
+  <line x1="14" y1="152" x2="222" y2="152" stroke="#3b4752" stroke-width="1"/>
+  <g transform="translate(178 62)"><rect x="0" y="0" width="44" height="20" rx="10" fill="#e8f1fa" stroke="#2f6aa5"/><text x="9" y="14" font-size="10.5" font-weight="700" fill="#2f6aa5">Σ = 1</text></g>
+  <text class="cap" x="14" y="172">ranks only what structure alone can score</text>
+</g>
+
+<g transform="translate(1066 458)">
+  <rect x="0" y="0" width="236" height="188" rx="12" fill="#ffffff" filter="url(#sh2)"/>
+  <text class="labA" x="14" y="24">History on S</text>
+  <text class="eq" x="14" y="46">p<tspan class="eqs" dy="3">S</tspan><tspan dy="-3">(o) = softmax</tspan><tspan class="eqs" dy="4">o∈S</tspan><tspan dy="-4"> log(e</tspan><tspan class="eqs" dy="-6">f</tspan><tspan font-size="6.5" font-style="italic" dy="2">str</tspan><tspan dy="4"> + e</tspan><tspan class="eqs" dy="-6">f</tspan><tspan font-size="6.5" font-style="italic" dy="2">rec</tspan><tspan dy="4">)</tspan></text>
+  <rect x="20" y="66" width="22" height="86" rx="3" fill="url(#gRed)"/>
+  <g fill="url(#gAmb)">
+    <rect x="48" y="98" width="22" height="54" rx="3"/><rect x="76" y="118" width="22" height="34" rx="3"/>
+    <rect x="104" y="131" width="22" height="21" rx="3"/><rect x="132" y="139" width="22" height="13" rx="3"/><rect x="160" y="144" width="22" height="8" rx="3"/>
+  </g>
+  <text x="24" y="62" font-size="10" font-weight="700" fill="#c0392b">o★</text>
+  <line x1="14" y1="152" x2="222" y2="152" stroke="#3b4752" stroke-width="1"/>
+  <g transform="translate(178 62)"><rect x="0" y="0" width="44" height="20" rx="10" fill="#fdf1dc" stroke="#b8741a"/><text x="9" y="14" font-size="10.5" font-weight="700" fill="#9a5f10">Σ = 1</text></g>
+  <text class="cap" x="14" y="172">S candidates compete only with each other</text>
+</g>
+
+<path class="flowB" d="M1304 342 C 1346 342, 1350 400, 1380 430"/>
+<path class="flowA" d="M1304 552 C 1346 552, 1350 494, 1380 464"/>
+<g transform="translate(1406 447)">
+  <circle cx="0" cy="0" r="27" fill="url(#gPur)" filter="url(#sh)"/>
+  <text x="-8" y="9" font-size="26" fill="#ffffff" font-weight="700">+</text>
+</g>
+<text x="1352" y="372" font-size="12" font-style="italic" fill="#2f6aa5" font-weight="700">× (1 − π)</text>
+<text x="1328" y="508" font-size="12" font-style="italic" fill="#9a5f10" font-weight="700">× π</text>
+<g transform="translate(1406 530)">
+  <path d="M-22 0 A 22 22 0 0 1 22 0" stroke="#e3d6f2" stroke-width="7" fill="none"/>
+  <path d="M-22 0 A 22 22 0 0 1 13 -17.8" stroke="#6b3fa0" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <text x="-22" y="16" font-size="10.5" fill="#6b3fa0" font-weight="700">π = σ(ρ)</text>
+  <text x="-40" y="30" font-size="9" fill="#5b6670">one learned scalar</text>
+</g>
+
+<path class="flowP" d="M1434 447 L1458 447"/>
+<g transform="translate(1462 330)">
+  <rect x="0" y="0" width="108" height="236" rx="12" fill="#ffffff" stroke="#6b3fa0" stroke-width="1.6" filter="url(#sh)"/>
+  <text class="labP" x="12" y="22">P(o | q)</text>
+  <text class="cap" x="12" y="36">over all N</text>
+  <rect x="14" y="56" width="16" height="140" rx="3" fill="url(#gRed)"/>
+  <rect x="34" y="104" width="12" height="92" rx="2" fill="url(#gAmb)"/>
+  <rect x="50" y="138" width="12" height="58" rx="2" fill="url(#gBlue)"/>
+  <rect x="66" y="152" width="12" height="44" rx="2" fill="url(#gAmb)"/>
+  <rect x="82" y="168" width="10" height="28" rx="2" fill="url(#gBlue)"/>
+  <line x1="10" y1="196" x2="98" y2="196" stroke="#3b4752"/>
+  <text x="14" y="50" font-size="9.5" fill="#c0392b" font-weight="700">o★</text>
+  <text class="cap" x="12" y="214">one exact</text>
+  <text class="cap" x="12" y="226">distribution</text>
+</g>
+
+<g transform="translate(1066 668)">
+  <rect x="0" y="0" width="502" height="54" rx="12" fill="#ffffff" stroke="#d6c8ea" filter="url(#sh2)"/>
+  <text class="eq" x="16" y="24" font-size="13.5">P(o | q) = π·p<tspan class="eqs" dy="3">S</tspan><tspan dy="-3">(o) [o ∈ S] + (1 − π)·p</tspan><tspan class="eqs" dy="3">N</tspan><tspan dy="-3">(o) [o ∉ S]</tspan></text>
+  <text class="cap" x="16" y="42">trained by −log P(o★ | q) · a single softmax over all N is the special case it generalises</text>
+</g>
+
+<g transform="translate(28 756)">
+  <rect x="0" y="0" width="1552" height="84" rx="14" fill="#f8f9fb" stroke="#e1e5ea"/>
+  <circle cx="26" cy="26" r="7" fill="url(#gBlue)"/><text x="40" y="30" font-size="11" fill="#3b4752">structural evidence</text>
+  <circle cx="186" cy="26" r="7" fill="url(#gAmb)"/><text x="200" y="30" font-size="11" fill="#3b4752">history evidence</text>
+  <circle cx="330" cy="26" r="7" fill="url(#gRed)"/><text x="344" y="30" font-size="11" fill="#3b4752">the answer o★</text>
+  <circle cx="460" cy="26" r="7" fill="url(#gPur)"/><text x="474" y="30" font-size="11" fill="#3b4752">mixture</text>
+  <line x1="564" y1="26" x2="600" y2="26" stroke="#2f6aa5" stroke-width="1.4" stroke-dasharray="5 4"/><text x="608" y="30" font-size="11" fill="#3b4752">optional component</text>
+  <text x="26" y="58" font-size="11" fill="#3b4752">Why separate normalisation: one softmax over all N must order the few hundred historical candidates among themselves and, with the same logits, against tens of thousands</text>
+  <text x="26" y="74" font-size="11" fill="#3b4752">of entities without history. Two normalisations remove that coupling (+0.37 MRR on WIKI, +0.67 on ICEWS18 over a shared softmax, three seeds), whatever the form of π.</text>
+</g>
 </svg>
