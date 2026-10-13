@@ -1,5 +1,6 @@
-%% CADENCE — unconstrained recurrence intensities for TKG forecasting
-%% IEEEtran (ICDE / general IEEE conference). For IJCAI switch to ijcai.sty.
+%% PRISM -- monotone-free recurrence and separately normalised experts for
+%% temporal knowledge graph forecasting.
+%% IEEEtran conference format.
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
 
@@ -10,322 +11,202 @@
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \usepackage{xcolor}
-%% Overleaf has Inkscape installed, so \includesvg works there directly and the
-%% figure stays vector. If you compile locally without Inkscape, either run
-%%   inkscape architecture.svg --export-filename=architecture.pdf
-%% and swap \includesvg for \includegraphics, or compile with -shell-escape.
+%% Overleaf has Inkscape installed, so \includesvg works there directly.
 \usepackage{svg}
 \svgsetup{inkscapelatex=false}
 
 \newtheorem{proposition}{Proposition}
 \newcommand{\todo}[1]{\textcolor{red}{[#1]}}
-\newcommand{\pending}[1]{\textcolor{blue}{#1$^{\dagger}$}}
+\newcommand{\sd}[1]{\,{\scriptsize$\pm$#1}}
 
 \begin{document}
 
-\title{Monotone Recurrence Has a Blind Spot: Diagnosis and\\
-Repair for Temporal Knowledge Graph Forecasting}
+\title{Beyond Monotone Recurrence: Separately Normalised\\
+Experts for Temporal Knowledge Graph Forecasting}
 
 \author{\IEEEauthorblockN{Anonymous}
 \IEEEauthorblockA{\textit{Institution} \\ \textit{Address} \\ email}}
 
 \maketitle
 
+%% ════════════════════════════════════════════════════════════════════════════
 \begin{abstract}
-Recurrence dominates temporal knowledge graph (TKG) forecasting: a plain
-recurrency baseline matches RE-GCN, CyGNet, TiRGN and L2-TKG on the standard
-benchmarks. Every recurrence mechanism in this literature scores a historical
-candidate by a function of how often it occurred and how long ago, which is
-non-decreasing in the first and non-increasing in the second --- whether the
-two are multiplied, as in the copy and decay terms of CyGNet, CENET, TiRGN,
-RE-GCN and DaeMon and in the learned exponential kernel of the neural-Hawkes
-model GAttNHP, or added, as in the rule confidences of CountTRuCoLa. We show
-that this entire family is provably unable to rank a large and directly
-measurable share of queries: whenever a distractor has both smaller elapsed
-time and larger count than the answer, no such scorer can place the answer
-first, however its parameters are fitted. We call such queries \emph{monotone-blocked}, note that the
-property is defined without reference to any model, and measure it at
-$41.6\%$ of YAGO, $29.3\%$ of WIKI, $26.6\%$ of ICEWS18 and $15.8\%$ of GDELT
-test queries, and it partitions any test set into strata on which a mechanism
-can be tested rather than only scored. We then introduce \textsc{Cadence},
-which abandons the two-argument form altogether: its recurrence branch is an
-unconstrained function of thirteen inter-arrival statistics of a candidate's
-observed history, conditioned on the query, so it is neither monotone in
-$\Delta t$ nor a function of the count and the elapsed time alone, and it
-recovers the classical exponential kernel as one point in its hypothesis
-space. The two branches are combined as what they are --- intensities of
-superposed point processes --- through a log-sum-exp rather than a learned
-gate. Restricting the branch to the published monotone form while holding the
-backbone, the optimiser and the schedule fixed costs $1.83$, $8.11$, $5.39$
-and $4.57$ MRR on the four benchmarks, and the loss concentrates on the
-blocked stratum, where H@1 falls by $5.66$ on YAGO and $18.31$ on WIKI against
-$1.77$ and $6.61$ on unblocked queries with a history. \textsc{Cadence} is at
-or above the strongest numbers reported by the comparison tables it is
-measured against, under a time-aware filtered protocol we verify against the
-reference implementation; we also document why those tables disagree with each
-other and what that does to any leaderboard claim in this area, our own
-included.
+Repetition is the strongest signal in temporal knowledge graph (TKG)
+forecasting, and every recurrence mechanism in this literature scores a
+historical candidate by a quantity that rises with how often it occurred and
+falls with how long ago. We show that this whole family has a provable blind
+spot: whenever a distractor occurred both more often and more recently than the
+answer, no such scorer can rank the answer first, however it is
+parameterised. The property is defined without reference to any model, so its
+extent is a statistic of the data: $41.6\%$, $29.3\%$, $26.6\%$ and $15.8\%$ of
+test queries on YAGO, WIKI, ICEWS18 and GDELT. We introduce PRISM, which makes
+two changes. Its recurrence intensity is an unconstrained function of thirteen
+inter-arrival statistics, outside the constrained family in both of the ways
+the bound allows; restricting it to the monotone form costs between $1.9$ and
+$8.1$ MRR. And instead of placing recurrence and structure inside one softmax,
+PRISM normalises a history expert over the candidate support and a structural
+expert over the remaining entities, and mixes the two distributions; controlled
+ablations attribute a further $+0.37$ to $+0.67$ MRR to this separation and
+none of it to how the mixing weight is computed. Over three seeds, PRISM
+reaches $91.80$, $83.49$ and $26.44$ MRR on YAGO, WIKI and GDELT, above the
+strongest results reported for these benchmarks, and matches a strong recent
+model on ICEWS18 that we re-ran under our own verified protocol, with higher
+Hits@1 and a run-to-run standard deviation roughly nine times smaller. A stratified evaluation
+shows where each approach is strong: PRISM leads by $17$ MRR on queries whose
+answer has a history with the subject, and trails on queries whose answer has
+none, which we identify as the main open problem.
 \end{abstract}
 
 \begin{IEEEkeywords}
 temporal knowledge graphs, link forecasting, temporal point processes,
-recurrence
+mixture of softmaxes, recurrence
 \end{IEEEkeywords}
 
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Introduction}
 \label{sec:intro}
 
 A temporal knowledge graph records facts that hold at a time, as quadruples
 $(s,r,o,t)$. Forecasting asks which object completes $(s,r,?,t)$ using only
-what happened strictly before $t$ --- who a state will next sanction, which
-office a person will next hold --- and it is the setting in which such graphs
-are actually deployed.
+what was observed strictly before $t$.
 
-The dominant signal in this task is repetition. A large fraction of the facts
-to be predicted have occurred before with the same subject and relation, and
-the field has documented how far that alone goes: a recurrency baseline that
-simply ranks candidates by how often and how recently they co-occurred with
-$(s,r)$ is competitive with several published
-architectures~\cite{historyrepeats,cygnet}. Every strong system since has
-included such a term. CyGNet~\cite{cygnet} copies from a frequency vector over
-the history; CENET~\cite{cenet} adds a contrastive historical / non-historical
-oracle on top of one; TiRGN~\cite{tirgn} and RE-GCN~\cite{regcn} attach one to
-a recurrent structural encoder; DaeMon~\cite{daemon} carries one alongside
-path evidence; GAttNHP~\cite{gattnhp} recasts the task as a neural Hawkes
-process and learns a per-entity decay rate.
+The dominant signal in this task is repetition. A large share of the facts to
+be predicted have occurred before with the same subject and relation, and a
+baseline that does nothing but rank candidates by how often and how recently
+they co-occurred with $(s,r)$ is already competitive with several learned
+models~\cite{historyrepeats,cygnet}. Every strong system since has contained
+such a term, whether as a copy vector~\cite{cygnet}, a history
+vector~\cite{regcn,tirgn}, a historical/non-historical
+decomposition~\cite{cenet}, a temporal point process with a learned decay
+rate~\cite{gattnhp}, or a learned rule confidence~\cite{counttrucola}.
 
-The interesting question is therefore not whether to model repetition, but
-what the models we already have \emph{cannot express}. Read as scorers, all of
-the above assign a historical candidate $o$ a value determined by two
-quantities --- how often the fact occurred, $c_o$, and how long ago it last
-occurred, $\Delta t_o$ --- through a function that rises in the first and falls
-in the second. Most of them multiply a count term by a decay term; the recent
-rule-learning method CountTRuCoLa~\cite{counttrucola} adds them instead. The
-parameterisations differ, and GAttNHP fits the decay rate rather than fixing
-it, but that shared monotonicity is common to all of them, and it is the
-monotonicity that binds.
+We start from a question these designs leave open: what can such a term
+\emph{not} express? Read as scorers, all of them assign a historical candidate
+a value that is non-decreasing in its count and non-increasing in the time
+since its last occurrence. This shared monotonicity has a consequence that is
+provable in one line (Proposition~\ref{prop:blocked}): if a distractor occurred
+both more often and more recently than the answer, no scorer of this kind can
+rank the answer first, whatever its parameters. We call such queries
+\emph{monotone-blocked}. Because the definition involves only the query and the
+observed histories, the share of blocked queries can be counted before any
+model is trained, and it is large.
 
-This paper's starting point is that the shape has a blind spot which is
-provable in one line and, more importantly, is \emph{measurable without
-reference to any model}. If some distractor occurred both more often and more
-recently than the true answer, then no scorer with that monotonicity can rank
-the answer above it, whatever its parameters: both of the quantities it reads
-already favour the distractor (Proposition~\ref{prop:blocked}). We call such a query \emph{monotone-blocked}.
-The definition mentions only the query and the observed histories of its
-candidates, so the share of blocked queries is a property of a dataset rather
-than of a system, and it can be counted directly. On the four standard
-benchmarks it is $41.6\%$ (YAGO), $29.3\%$ (WIKI), $26.6\%$ (ICEWS18) and
-$15.8\%$ (GDELT) of test queries.
-
-A fair objection is that no published system uses its recurrence term in
-isolation: each pairs it with a structural encoder that is not subject to the
-bound and can rescue a blocked query. That is true, and it is why we do not
-claim these systems fail on those queries. What the measurement establishes is
-narrower and still consequential: on between a sixth and two-fifths of all
-queries, the component that carries the dominant signal of the task is
-structurally unable to produce the right ordering and must hand the query to
-the branch that is weaker on exactly this kind of data. That is a large amount
-of delegation to design in on purpose.
-
-Our response is to stop repairing the product and leave it. The recurrence
-branch of \textsc{Cadence} summarises a candidate's observed history by
-thirteen inter-arrival statistics --- counts, elapsed times and mean gaps for
-the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$ views, plus gap dispersion,
-span, rate and a has-history flag --- and maps them through an unconstrained
-network. Nothing in it is monotone in $\Delta t$, nothing is separable into a
-count factor and a time factor, and the classical count-times-decay scorer is
-one point in its hypothesis space, so the generalisation is strict. Holding the
-backbone, the optimiser and the schedule fixed and restricting only this branch
-to the published form costs $1.83$, $8.11$, $5.39$ and $4.57$ MRR on the four
-benchmarks: the functional form, not the encoder, carries the gain.
-
-Two further choices follow from taking the point-process reading
-seriously~\cite{daleyvere}. Since the two branches are intensities of
-superposed processes, their intensities \emph{add}, so they must be combined by
-a log-sum-exp; summing logits, as a gated architecture effectively does,
-multiplies intensities instead, which has no meaning under the model and lets
-one branch rescale the other. And because superposition prescribes the
-combination, there is no mixing weight to learn --- hence no gate that can
-collapse onto a single branch, a failure we observed directly in earlier gated
-variants of this work.
-
-Because our margins over the state of the art are in places smaller than the
-differences between evaluation conventions in this literature, we verified our
-harness against the RE-GCN reference implementation on all four datasets before
-reporting anything (Section~\ref{sec:protocol}).
+PRISM is built around two observations. The first follows directly from the
+bound: its recurrence intensity is an unconstrained function of a candidate's
+full inter-arrival statistics, so it is free of the monotonicity that causes
+the blind spot, while still containing the classical scorer as a special case.
+The second came out of our ablations. A recurrence term and a structural
+encoder are usually combined inside a single softmax over all entities. We
+find that it is substantially better to normalise a \emph{history expert} over
+the candidates that have a history and a \emph{structural expert} over the rest,
+and to mix the two distributions --- an instance of the observation that one
+softmax cannot represent a mixture of two differently-shaped
+distributions~\cite{mos}. The gain comes from the separate normalisation
+itself: routing the mixing weight per query adds nothing.
 
 \paragraph{Contributions}
 \begin{itemize}
-  \item Proposition~\ref{prop:blocked}, which identifies a provable blind spot
-        shared by every recurrence mechanism in this literature, and the
-        model-free diagnostic it induces --- a dataset statistic that can be
-        computed before any model is trained.
-  \item \textsc{Cadence}, whose recurrence intensity strictly contains the
-        family the proposition constrains, together with a superposition rule
-        that follows from the point-process reading and admits no gate.
-  \item A stratified evaluation that tests the proposed mechanism on the
-        stratum it targets rather than reporting only a pooled metric. This is
-        where we ask the paper to be judged: the restriction to the monotone
-        form costs $5.66$ H@1 on YAGO's blocked stratum against $1.77$ on its
-        unblocked queries, and $18.31$ against $6.61$ on WIKI.
-  \item Results on YAGO, WIKI, ICEWS18 and GDELT under a time-aware filtered
-        protocol verified against the reference implementation rather than
-        assumed to match it --- together with an account, in
-        Section~\ref{sec:comparability}, of why published tables in this area
-        disagree and what that costs any leaderboard claim, ours included.
-  \item Two negative results reported in full, including one mechanism we
-        expected to work and removed.
+  \item A characterisation of what recurrence scorers in this literature cannot
+        rank (Proposition~\ref{prop:blocked}) and a model-free diagnostic that
+        measures it on any dataset.
+  \item An unconstrained recurrence intensity that strictly contains the
+        constrained family; restricting it costs $1.9$--$8.1$ MRR.
+  \item A mixture of separately normalised history and structural experts,
+        with ablations that isolate which part of it carries the gain.
+  \item Results over three seeds on four benchmarks under a time-aware
+        filtered protocol verified against a reference implementation, a
+        strong recent model re-run under the same protocol, and a stratified
+        evaluation showing where each approach succeeds.
 \end{itemize}
 
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Related Work}
 \label{sec:related}
 
-\paragraph{Recurrence and copy mechanisms}
-CyGNet~\cite{cygnet} scores candidates from a copy vector of frequencies over
-the observed history. CENET~\cite{cenet} pairs a frequency scorer with an
-explicit historical / non-historical oracle trained contrastively.
-TiRGN~\cite{tirgn} and RE-GCN~\cite{regcn} attach a history vector to a
-recurrent structural encoder, and DaeMon~\cite{daemon} carries one alongside
-path evidence. Gastinger et al.~\cite{historyrepeats} showed that a baseline
-consisting of nothing but such a term is competitive with eleven published
-methods on five datasets, which is the empirical fact this paper starts from.
-All of these score a candidate by a quantity that rises with the count and
-falls with the elapsed time, so all fall under
-Proposition~\ref{prop:blocked}.
+\paragraph{Evolutional and structural models}
+RE-GCN~\cite{regcn} evolves entity representations over a window of snapshots
+with a relational GCN and a recurrent update, and is the basis of many
+subsequent models. CEN~\cite{cen} learns evolutional patterns of different
+lengths. DiMNet~\cite{dimnet} adds cross-time message passing at equal layer
+depth and disentangles node states into active and stable factors; our
+structural expert adopts both, and we claim no novelty for them. xERTE~\cite{xerte}
+and TITer~\cite{titer} reason over explicit subgraphs and paths, DaeMon~\cite{daemon}
+propagates a query-conditioned path memory without entity embeddings, and
+TiPNN~\cite{tipnn} builds a query-aware history graph.
 
-\paragraph{Rule-based forecasting}
-TLogic-style rule induction and, most recently,
-CountTRuCoLa~\cite{counttrucola} learn interpretable temporal rules whose
-confidence is fitted per rule. CountTRuCoLa is the closest published work to
-our diagnosis, because it also treats the shape of the recency response as the
-object to be learned rather than fixed. It differs in two ways that matter
-here. Its confidence \emph{adds} a recency term to a frequency term instead of
-multiplying them, which is why we state
-Proposition~\ref{prop:blocked} at the level of monotonicity rather than for
-products; and its recency term is an exponential in the elapsed time with a
-fitted rate, so the learned object stays inside the monotone family. It is
-also the strongest published result we are aware of on GDELT under the
-time-aware filtered protocol, and we include it in
-Table~\ref{tab:main}.
+\paragraph{Repetition and history}
+CyGNet~\cite{cygnet} introduced a copy mechanism over the historical
+vocabulary of a query, TiRGN~\cite{tirgn} combines a local recurrent encoder
+with a global history vector, and CENET~\cite{cenet} learns to separate
+historical from non-historical answers with a contrastive objective. Gastinger
+et al.~\cite{historyrepeats} showed how far a recurrency baseline alone goes, and
+CountTRuCoLa~\cite{counttrucola} learns interpretable rule confidences that
+combine recency and frequency. LogCL~\cite{logcl} contrasts local and global
+history encoders, and CognTKE~\cite{cogntke} combines fast global and deliberate
+local reasoning. GAttNHP~\cite{gattnhp} casts the task as a neural Hawkes
+process. Our point-process reading of the combination rule follows the
+standard treatment of superposed processes~\cite{daleyvere}.
 
-\paragraph{Point processes for TKG}
-GAttNHP~\cite{gattnhp} casts TKG extrapolation as a neural Hawkes process with
-base, self- and group-excitation, but its kernel is $\exp(-\gamma_u \Delta t)$
-with a learned per-entity rate, and is therefore inside the constrained family.
-We adopt the point-process reading itself --- it is what dictates our
-superposition rule~\cite{daleyvere} --- and claim no novelty for it; our
-contribution concerns the shape of the kernel.
+\paragraph{Evaluation}
+Results in this area are reported under several filtering conventions, and
+Gastinger et al.~\cite{gastingereval} showed that the choice can change
+rankings. Recent work also documents that part of the standard benchmarks can
+be solved by co-occurrence statistics alone~\cite{shortcut}. We therefore
+verify our protocol against a reference implementation, re-run one strong
+recent model under it, and report a stratified evaluation alongside the
+pooled metrics.
 
-\paragraph{Structural encoders}
-RE-GCN~\cite{regcn} evolves entity representations over snapshots with an
-R-GCN and a GRU. XERTE~\cite{xerte} and TITer~\cite{titer} instead search an
-explicit subgraph or trajectory. DiMNet~\cite{dimnet} adds cross-time
-perception at equal hop depth and disentangles node features into active and
-stable factors; its ablation attributes $-11.38$ MRR to disentanglement,
-$-9.62$ to virtual-subgraph refinement and $-4.97$ to multi-span.
-\emph{We adopt multi-span evolution and active/stable disentanglement as our
-backbone and claim no novelty for them}; our decoder is
-ConvTransE~\cite{convtranse}. Concurrent unrefereed work~\cite{est} proposes a
-persistent global entity-state buffer with fast and slow tracks, which is a
-more expressive version of the stability mechanism we inherit from DiMNet; its
-reported figures on ICEWS18 and GDELT are more than ten MRR points above every
-other number in this literature, including its own baselines, so we do not
-treat them as comparable to ours and do not tabulate them.
-
-\paragraph{Path-based reasoning}
-DaeMon~\cite{daemon} carries an NBFNet-style~\cite{nbfnet} query-conditioned
-state across snapshots with a time-aware gate and contains no entity
-embeddings, so a never-seen candidate is still scored on path evidence.
-TiPNN~\cite{tipnn} builds a query-aware history graph in the same spirit. We
-reimplement this as an optional third intensity and report it in
-Section~\ref{sec:negative} as a negative result at our scale.
-
-\paragraph{Evaluation protocol}
-Published numbers use incompatible settings, and Gastinger et
-al.~\cite{gastingereval} showed that the choice alone moves results enough to
-reverse rankings between methods. RE-GCN, TiRGN, CENET, DaeMon, TiPNN, DiMNet
-and CountTRuCoLa report time-aware filtered; GAttNHP reports raw. We report all
-three settings, compare only within one, and additionally verify our
-implementation of the time-aware filter against the reference code
-(Section~\ref{sec:protocol}).
-
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Preliminaries}
 \label{sec:prelim}
 
-A TKG is a set of quadruples $(s,r,o,t)$. Forecasting asks for $o$ given
-$(s,r,?,t)$ using only facts strictly before $t$. We report MRR and
-Hits@$\{1,3,10\}$. Ties are resolved to their average position,
-\begin{equation}
-\mathrm{rank} = 1 + \#\{\text{strictly better}\}
-              + \tfrac{1}{2}\bigl(\#\{\text{tied}\} - 1\bigr),
-\end{equation}
-because counting only strictly-better scores inflates every metric for models
-that assign many candidates an identical score. Under that convention an early
-copy-only variant of our own model reported $\mathrm{H@}10 = 99.93$ on YAGO,
-against $93.34$ for DaeMon.
+A TKG is a set of quadruples $(s,r,o,t)$; inverse quadruples
+$(o,r^{-1},s,t)$ are added so that both directions are predicted. For a query
+$(s,r,?,t)$ the model may use only facts with timestamps strictly before $t$.
+The \emph{candidate support} $S(q)$ is the set of entities that occurred as an
+object of $(s,r)$, of $s$ under any relation, or among the most frequent
+objects of $r$, before $t$. For each candidate $o\in S$ we compute, from the
+observed history alone, $c_o$, the number of past occurrences of $(s,r,o)$, and
+$\Delta t_o$, the time since the last one.
 
-\section{The Blind Spot of Monotone Recurrence}
+We report MRR and Hits@$\{1,3,10\}$ under the time-aware filtered protocol, in
+which only other true answers \emph{at the query timestamp} are removed from
+the ranking. Ties are resolved to their average position,
+$\mathrm{rank} = 1 + \#\{\text{better}\} + \tfrac12(\#\{\text{tied}\}-1)$.
+
+%% ════════════════════════════════════════════════════════════════════════════
+\section{A Blind Spot of Monotone Recurrence}
 \label{sec:blocked}
-
-\subsection{Proposition}
-
-Published recurrence terms differ in how they put a count and an elapsed time
-together. Most multiply, $f(c)\,g(\Delta t)$; the recent rule-learning method
-CountTRuCoLa~\cite{counttrucola} instead \emph{adds} a recency term and a
-frequency term. Stating the bound for the product form alone would therefore
-leave an obvious escape, so we state it at the level of monotonicity, where no
-such escape exists.
 
 \begin{proposition}
 \label{prop:blocked}
-Let a recurrence scorer be any function
-$s(o) = \psi(c_o, \Delta t_o)$ of the number of past occurrences $c_o$ of the
-candidate and the time $\Delta t_o$ since its last occurrence, such that
-$\psi$ is non-decreasing in its first argument and non-increasing in its
-second. Let $o^\star$ be the answer and let a distractor $o$ satisfy
-$c_o \ge c_{o^\star}$ and $\Delta t_o \le \Delta t_{o^\star}$. Then
-$s(o) \ge s(o^\star)$.
+Let a recurrence scorer be any function $\psi(c_o, \Delta t_o)$ that is
+non-decreasing in its first argument and non-increasing in its second. Let
+$o^\star$ be the answer and let a distractor $o$ satisfy $c_o \ge c_{o^\star}$
+and $\Delta t_o \le \Delta t_{o^\star}$. Then
+$\psi(c_o, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_{o^\star})$.
 \end{proposition}
 
 \begin{proof}
-$\psi(c_o, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_o)$ by monotonicity in
-the first argument, and
-$\psi(c_{o^\star}, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_{o^\star})$ by
-monotonicity in the second. Chaining the two gives the claim.
+$\psi(c_o, \Delta t_o) \ge \psi(c_{o^\star}, \Delta t_o) \ge
+\psi(c_{o^\star}, \Delta t_{o^\star})$, by monotonicity in the first argument
+and then in the second.
 \end{proof}
 
-The hypothesis is weak, which is the point. It asks only that seeing a fact
-more often does not lower its score and that seeing it longer ago does not
-raise it --- the two properties every recurrence mechanism in this literature
-is designed to have. It is satisfied by any product $f(c)\,g(\Delta t)$ with
-$f$ non-decreasing and $g$ positive and non-increasing, by any sum
-$f(c) + g(\Delta t)$ of the same, and more generally by $h(f(c), g(\Delta t))$
-for any $h$ non-decreasing in both arguments. It therefore covers the copy
-vector of CyGNet~\cite{cygnet}, the historical scorers of
-CENET~\cite{cenet}, TiRGN~\cite{tirgn}, RE-GCN~\cite{regcn} and
-DaeMon~\cite{daemon}, the additive rule confidences of
-CountTRuCoLa~\cite{counttrucola}, and the exponential kernel of
-GAttNHP~\cite{gattnhp} --- whose per-entity decay rate is learned, but learned
-inside the hypothesis. No choice of decay rate and no reweighting of counts
-ranks $o^\star$ strictly first.
-
-We call such a query \emph{monotone-blocked}. The definition involves only the
-query and the observed histories of its candidates, and no model, so it is a
-statistic of a dataset and can be computed before anything is trained.
-
-\paragraph{The two ways out}
-Proposition~\ref{prop:blocked} leaves exactly two escapes, and we take both. A
-scorer may fail to be monotone in the two arguments, or it may not be a
-function of those two arguments alone. The branch of
-Section~\ref{sec:method} reads thirteen statistics rather than two, and is
-unconstrained in all of them.
-
-\subsection{The rate is large}
+The hypothesis asks only that seeing a fact more often does not lower its
+score and that seeing it longer ago does not raise it. It holds for any product
+$f(c)\,g(\Delta t)$ and any sum $f(c)+g(\Delta t)$ with $f$ non-decreasing and
+$g$ non-increasing, and for any combination non-decreasing in both, so it
+covers the recurrence terms cited above, including those whose decay rate is
+learned. We call a query \emph{monotone-blocked} when such a distractor exists.
+Proposition~\ref{prop:blocked} leaves exactly two ways out: a scorer that is not
+monotone in $(c,\Delta t)$, or one that depends on more than these two
+quantities. Section~\ref{sec:rec} takes both.
 
 \begin{table}[t]
 \centering
-\caption{Monotone-blocked rate, measured on 20{,}000 sampled test queries per
-dataset. No model is involved.}
+\caption{Monotone-blocked queries, measured on 20{,}000 sampled test queries
+per dataset. No model is involved.}
 \label{tab:blocked}
 \begin{tabular}{lccc}
 \toprule
@@ -339,341 +220,347 @@ GDELT   & 24.9\% & 63.4\% & \textbf{15.8\%} \\
 \end{tabular}
 \end{table}
 
-\paragraph{Scope of the bound}
-Proposition~\ref{prop:blocked} constrains a recurrence scorer \emph{in
-isolation}. Published systems pair such a term with a structural branch that
-is not subject to it and can rescue a blocked query. What
-Table~\ref{tab:blocked} establishes is that on $15.8$--$41.6\%$ of queries the
-recurrence component cannot produce the correct ordering and must delegate.
+Table~\ref{tab:blocked} separates two regimes. On YAGO and WIKI almost every
+answer has a history, so recurrence decides the task and the blocked share of
+all queries is large. On ICEWS18 and GDELT most answers have no history; the
+blocked share of all queries is smaller, but among the queries that do have a
+history it is \emph{higher}. A structural component can rescue a blocked
+query, since the bound applies to the recurrence term alone; what the table
+shows is how often the term that carries the strongest signal of the task is
+unable to order the candidates on its own.
 
-\subsection{Two regimes}
-
-Table~\ref{tab:blocked} separates the benchmarks into two regimes, and the rest
-of the paper is read against that split. On YAGO and WIKI almost every answer
-has a history ($92.8\%$, $87.0\%$), so recurrence is where the task is decided
-and the blocked share of \emph{all} queries is correspondingly large. On
-ICEWS18 and GDELT most answers have no history at all ($47.7\%$ and $24.9\%$
-do), so the blocked share of all queries is smaller --- but conditional on
-having a history it is \emph{higher}, $55.7\%$ and $63.4\%$. The blind spot is
-therefore not confined to the slowly-evolving datasets; on the event datasets
-it is denser, over a smaller pool. Section~\ref{sec:strat} evaluates on these
-strata separately rather than reporting only the pooled metric.
-
-\section{\textsc{Cadence}}
+%% ════════════════════════════════════════════════════════════════════════════
+\section{PRISM}
 \label{sec:method}
 
 \begin{figure*}[t]
 \centering
 \includesvg[width=\textwidth]{architecture}
-\caption{Overview of the model. \emph{Left}: the structural branch. Each
-historical snapshot $\mathcal{G}(t_i)$ is passed through three multi-span GCN
-layers whose message at depth $\ell$ also reads depth $\ell$ at $t_{i-1}$, is
-disentangled into an active and a stable factor, and is carried across time by a
-GRU, giving the evolved entity table $E(t)$. A ConvTransE decoder scores every
-entity against $[E(t)[s]\,\|\,R[r]]$. \emph{Right}: the recurrence branch, drawn
-in full because it is where the contribution lies. For each candidate $o$ we read
-its observed occurrence history off a precomputed CSR index and summarise it by
-thirteen inter-arrival statistics, which an unconstrained MLP maps to a scalar.
-The two timelines $o^{\star}$ and $o'$ are the configuration of
-Proposition~\ref{prop:blocked}: the distractor has both the smaller $\Delta t$
-and the larger count, so every score of the form $f(\text{count})\cdot g(\Delta
-t)$ with $g$ non-increasing ranks it at least as high as the answer, whatever
-decay rate is fitted. \emph{Bottom}: the branches are point-process intensities,
-so they are superposed by $\log\lambda = \mathrm{logaddexp}(f_{\mathrm{struct}},
-f_{\mathrm{rec}})$ on the candidate set and by $f_{\mathrm{struct}}$ elsewhere.
-No mixing weight is learned, so there is no gate that can collapse onto one
-branch.}
+\caption{Overview. The structural expert evolves entity states over the recent
+snapshots and scores entities with a ConvTransE decoder. The history expert
+scores every candidate in the support $S$ from thirteen inter-arrival
+statistics through an unconstrained network. Each expert is normalised over
+its own set of entities, and the two distributions are mixed.
+\todo{redraw the combination step: separate normalisation and mixture
+replace the single logaddexp shown here.}}
 \label{fig:arch}
 \end{figure*}
 
-\subsection{Superposition, not gating}
+\subsection{History expert: an unconstrained recurrence intensity}
+\label{sec:rec}
 
-Fig.~\ref{fig:arch} gives the whole model. A query is a draw from a
-superposition of two marked point processes on the entity space,
+For a candidate $o \in S$ we summarise its observed history by a vector
+$\phi_o \in \mathbb{R}^{13}$: the count, the elapsed time and the mean
+inter-arrival gap of the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$ histories,
+the dispersion of the $(s,r,o)$ gaps, its span and rate, and a has-history
+indicator. They are read from a compressed sparse-row temporal index and carry
+no gradient. The recurrence score is
 \begin{equation}
-\lambda(o) = \lambda_{\mathrm{struct}}(o \mid \mathcal{G}_{<t}, s, r)
-           + \lambda_{\mathrm{rec}}(o \mid \mathcal{H}_o, s, r).
+f_{\mathrm{rec}}(o) = \mathrm{MLP}\bigl[\,\mathrm{LN}(\phi_o)\,\|\,u(r)\,\|\,
+v(o)\,\|\,w(E[s])\,\bigr],
 \end{equation}
-For a superposition the probability that the next mark is $o$ is
-$\lambda(o)/\sum_{o'}\lambda(o')$, so a softmax cross-entropy on
+with learned relation, entity and subject contexts $u$, $v$, $w$ and a trunk of
+two Linear--LayerNorm--GELU blocks. Nothing constrains $f_{\mathrm{rec}}$ to
+decrease in $\Delta t$ or to increase in $c$, and it reads eleven statistics
+beyond those two, so it is outside the family of
+Proposition~\ref{prop:blocked} in both available ways; choosing the network to
+compute $\log a + p\log(1+c) - b\,\Delta t$ recovers the classical scorer.
+
+\subsection{Structural expert}
+
+The structural expert follows prior work~\cite{dimnet,regcn}. Each of the last
+$H$ snapshots is encoded by three relational GCN layers with mean and max
+aggregation~\cite{pna}, a cross-time link at equal layer depth, and a split
+into active and stable factors with a drift penalty on the stable factor; a
+GRU carries the state across snapshots and yields the entity table $E$. A
+ConvTransE decoder~\cite{convtranse} scores every entity against
+$[E[s]\,\|\,R[r]]$, giving $f_{\mathrm{str}}(o)$. Because batches are
+snapshots whose sizes vary by two orders of magnitude, the decoder uses
+LayerNorm rather than BatchNorm.
+
+\subsection{Separately normalised experts}
+\label{sec:mix}
+
+The two scores live on different scales and describe different populations:
+$f_{\mathrm{rec}}$ is defined only on the support, and among support candidates
+the ordering is decided mostly by history, while outside the support only
+structure is available. PRISM therefore normalises each expert on its own set
+and mixes the results:
 \begin{equation}
-\mathrm{score}(o) = \log \lambda(o) =
+P(o\mid q)=
 \begin{cases}
-\mathrm{logaddexp}\bigl(f_{\mathrm{struct}}(o), f_{\mathrm{rec}}(o)\bigr) & o \in S,\\
-f_{\mathrm{struct}}(o) & \text{otherwise},
+\pi\, p_S(o) & o \in S,\\[2pt]
+(1-\pi)\, p_N(o) & o \notin S,
 \end{cases}
 \end{equation}
-is the correct discrete-choice likelihood. Two consequences matter in
-practice. Superposition \emph{adds intensities}, so the branches combine
-through $\mathrm{logaddexp}$ and not through a sum of logits; a sum of logits
-multiplies intensities, which has no point-process meaning and allows one
-branch to rescale the other. And there is no mixing gate, hence no gate to
-collapse: earlier variants of this work with a learned scalar or per-query
-gate collapsed to a single branch within a few epochs.
+where $p_S$ is a softmax over $S$ of
+$\log\bigl(e^{f_{\mathrm{str}}(o)} + e^{f_{\mathrm{rec}}(o)}\bigr)$, so
+structure still informs the ordering inside the support, $p_N$ is a softmax of
+$f_{\mathrm{str}}$ over the complement of $S$, and $\pi = \sigma(\rho)$ is a
+single learned scalar. This is an exact distribution over all entities, and
+training minimises its negative log-likelihood.
 
-\subsection{The recurrence intensity}
+A single softmax over $\log(e^{f_{\mathrm{str}}}+e^{f_{\mathrm{rec}}})$ is the
+special case in which both experts share one normalisation. That model must
+express, with one set of logits, both how the historical candidates compare
+with one another and how all of them compare with tens of thousands of entities
+that have no history at all. The mixture removes that coupling, in the same way
+a mixture of softmaxes relaxes the rank limit of a single one~\cite{mos}.
+Section~\ref{sec:ablation} isolates this effect from everything else that
+changes between the two.
 
-The proposition constrains a functional \emph{form}, not a parameterisation, so
-no amount of fitting inside that form escapes it. We therefore leave the form.
-For a candidate $o$ we summarise its observed history by a vector
-$\phi_o \in \mathbb{R}^{13}$ and set
-\begin{equation}
-\log \lambda_{\mathrm{rec}}(o) =
-\mathrm{MLP}\bigl[\,\mathrm{LN}(\phi_o) \,\|\, u(r) \,\|\, v(o)
-                  \,\|\, q(E(t)[s])\,\bigr] + b,
-\end{equation}
-where $u$, $v$ and $q$ are learned relation, entity and subject contexts, the
-trunk is two Linear--LayerNorm--GELU blocks, and $b$ is a scalar initialised at
-$-2$.
+\subsection{Global history context (optional)}
+\label{sec:global}
 
-The subject term $q$ is not decoration, and leaving it out has a specific
-cost. Because $\mathrm{logaddexp}(a,b) \ge a$, the recurrence intensity can
-only ever raise a candidate that has a history relative to one that does not.
-Its only way to stay out of the way on a query whose answer never occurred
-with $(s,r)$ is to drive its own intensity down --- and it cannot decide to do
-that without seeing the query it is answering. This is not a gate between the
-branches: no mixing weight is learned and the superposition rule of
-Section~\ref{sec:method} is untouched. It is the intensity depending on the
-conditioning information $\lambda_{\mathrm{rec}}(o \mid \mathcal{H}_o, s, r)$
-was defined on.
+The structural expert sees only the last $H$ snapshots, so an entity that was
+quiet in that window enters the decoder with little more than its static
+embedding. As an optional component we add to each entity's initial state the
+mean, over all of its facts $(o,r,x,t')$ with $t'<t$, of $E_0[x]+R[r]$, passed
+through a projection initialised at zero. It is computed with one chunked
+scatter-add over the facts before $t$, reads nothing at or after $t$, and does
+not depend on training order. Section~\ref{sec:global-res} reports where it
+helps and where it does not.
 
-The thirteen statistics are the count, the elapsed time $\Delta t$ and the mean
-inter-arrival gap of each of the $(s,r,o)$, $(s,\cdot,o)$ and $(r,\cdot,o)$
-histories, together with the dispersion of the gaps, the span and rate of the
-$(s,r,o)$ history, and a binary has-history indicator. They are read from a
-compressed sparse-row temporal index built once per dataset and carry no
-gradient, so the branch adds no message passing to the backbone.
-
-Two properties matter. First, the family in
-Proposition~\ref{prop:blocked} is contained in this one: taking the MLP to
-compute $\log a + p\log(1+c) - b\,\Delta t$ recovers the classical
-count-times-decay scorer exactly, so we cannot lose by generalising, and
-Section~\ref{sec:mech} measures what we gain by doing so. Second, nothing
-forces the score to decrease in $\Delta t$ or to increase in the count, and it
-is a joint function of both together with seven further statistics --- so the
-blocked configuration of Proposition~\ref{prop:blocked} is reachable, which is
-precisely what the product form forbids.
-
-\subsection{Structural intensity}
-
-The backbone is adopted from prior work: a composition GCN over each snapshot
-with a cross-time link at equal layer depth, aggregating with both mean and max
---- a reduced form of the multi-aggregator scheme of~\cite{pna}, which
-separates many weak neighbours from one decisive one where a mean cannot ---
-node states split into
-complementary active and stable factors with a drift penalty on the stable
-factor across adjacent snapshots, a GRU across snapshots, and a ConvTransE
-decoder over the full entity table. We use LayerNorm rather than BatchNorm in
-the decoder: batches here are snapshots, so batch size is however many facts
-occurred at one timestamp and varies from $72$ to $4{,}650$ across our
-datasets, and once a long snapshot is split into query chunks the result would
-otherwise depend on the split.
-
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Experimental Setup}
 \label{sec:setup}
 
-Four benchmarks, time-aware filtered protocol, baselines quoted from the
-DaeMon table (YAGO, WIKI) and the DiMNet table (ICEWS18, GDELT), both of which
-report that protocol. $d=200$, three GCN layers, history of ten snapshots
-(five on GDELT). Parameter counts are dominated by the entity table and so are
-dataset-dependent: $6.0$M on YAGO and $8.6$M on ICEWS18. The recurrence branch
-is $0.31$M of that on every dataset, since it is sized by the relation and
-entity context widths rather than by the vocabulary. One A100 per run: YAGO
-42\,min, ICEWS18 1\,h\,15, WIKI 3\,h, GDELT 8\,h.
+\paragraph{Data and protocol}
+We use ICEWS18, GDELT, WIKI and YAGO with their standard splits. Before
+reporting any number we checked our evaluation code against the RE-GCN
+reference implementation: the scored query counts are identical on all four
+datasets, the splits are temporally disjoint, and the filtered answer sets
+agree on $4{,}000$ sampled test queries per dataset with no differences.
 
-\subsection{The protocol is verified against the reference}
-\label{sec:protocol}
+\paragraph{Baselines}
+Published numbers are taken from the DiMNet comparison table for ICEWS18 and
+GDELT and from the DaeMon table for WIKI and YAGO, both of which use the
+time-aware filtered protocol. Because tables in this area are not always
+directly comparable, we additionally re-ran LogCL~\cite{logcl}, a strong recent
+model, three times on ICEWS18 with its published hyperparameters and evaluated
+its saved score matrices with \emph{our} evaluation code. LogCL's own evaluator
+and ours give the same MRR, Hits@1, Hits@3 and Hits@10 on the same run
+($35.41$ / $24.09$ / $40.17$ / $57.95$),
+which confirms that the two measure the same quantity.
 
-A subtle difference in filtering would invalidate margins of the size we
-report, so we checked our harness against RE-GCN's \texttt{rgcn/utils.py},
-which is the de-facto standard for this benchmark family. The reference
-appends inverse triples in \texttt{predict()} and scores both directions; so
-do we, and the scored query counts are identical on all four datasets. The
-reference sets every other true answer at the query timestamp to $-10^7$ and
-restores the target; we do the same with $-\infty$. The reference builds the
-filter from the test split alone whereas we build it from all splits; the
-filter is keyed by timestamp, so the two coincide when splits are temporally
-disjoint. We verified disjointness on the actual files --- zero overlapping
-timestamps on all four datasets --- and then verified directly that the two
-answer sets agree on $4{,}000$ sampled test queries per dataset, with zero
-differences.
+\paragraph{Training}
+$d = 200$, three GCN layers, history of ten snapshots (five on GDELT), Adam
+with learning rate $10^{-3}$, label smoothing $0.1$, early stopping on
+validation MRR, three seeds per configuration. Candidate supports and their
+statistics depend only on the query and on earlier facts, so they are computed
+once per dataset and served from a shared memory-mapped cache; this makes an
+epoch $1.5$--$24\times$ faster (GDELT: from $25$--$50$ to about $2$ minutes on
+one A100) and leaves every input tensor bit-identical. Parameter counts are
+$6.0$M on YAGO and $8.6$M on ICEWS18, dominated by the entity table.
 
-One difference remains. The reference ranks by sort position, so a target tied
-with $k-1$ others lands anywhere in that group; we take the average position,
-which is the expectation of that draw. Ours is therefore unbiased with respect
-to the reference and cannot be optimistic.
-
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Results}
 \label{sec:results}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{Main results, time-aware filtered, $\times 100$, mean $\pm$ std over
-seeds. $^{\dagger}$ single seed, pending. CountTRuCoLa~\cite{counttrucola}
-reports MRR and Hits@10 only; we quote its MRR.}
+\caption{Main results, time-aware filtered, $\times100$. PRISM: mean $\pm$
+standard deviation over three seeds, one configuration for all datasets.
+$^\ddagger$ re-run by us under our evaluation code, three runs.}
 \label{tab:main}
-\begin{tabular}{llcccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{l cccc cccc cccc cccc}
 \toprule
-dataset & method & MRR & H@1 & H@3 & H@10 \\
+& \multicolumn{4}{c}{YAGO} & \multicolumn{4}{c}{WIKI}
+& \multicolumn{4}{c}{ICEWS18} & \multicolumn{4}{c}{GDELT} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}\cmidrule(lr){10-13}\cmidrule(lr){14-17}
+method & MRR & H@1 & H@3 & H@10 & MRR & H@1 & H@3 & H@10
+       & MRR & H@1 & H@3 & H@10 & MRR & H@1 & H@3 & H@10 \\
 \midrule
-\multirow{3}{*}{YAGO}
- & DaeMon         & 91.59 & 90.03 & \textbf{93.00} & \textbf{93.34} \\
- & CountTRuCoLa   & 90.9  & --    & --    & -- \\
- & \textsc{Cadence} & \textbf{91.64}\,$\pm$0.04 & \textbf{90.32}\,$\pm$0.08 & 92.88 & 93.08 \\
+CyGNet~\cite{cygnet} & 52.07 & 45.36 & 56.12 & 63.77 & 33.89 & 29.06 & 36.10 & 41.86
+       & 24.93 & 15.90 & 28.28 & 42.61 & 18.48 & 11.52 & 19.57 & 31.98 \\
+xERTE~\cite{xerte}   & 84.19 & 80.09 & 88.02 & 89.78 & 71.14 & 68.05 & 76.11 & 79.01
+       & 29.31 & 21.03 & 33.40 & 45.60 & 18.09 & 12.30 & 20.06 & 30.34 \\
+TITer~\cite{titer}   & 87.47 & 84.89 & 89.96 & 90.27 & 75.50 & 72.96 & 77.49 & 79.02
+       & 29.98 & 22.05 & 33.46 & 44.83 & 15.46 & 10.98 & 15.61 & 24.31 \\
+RE-GCN~\cite{regcn}  & 84.12 & 80.76 & 86.30 & 89.98 & 77.55 & 73.75 & 80.38 & 83.68
+       & 30.58 & 21.01 & 34.34 & 48.75 & 19.64 & 12.42 & 20.90 & 33.69 \\
+CEN~\cite{cen}       & -- & -- & -- & -- & -- & -- & -- & --
+       & 30.84 & 21.23 & 34.58 & 49.67 & 20.18 & 12.84 & 21.51 & 34.10 \\
+DaeMon~\cite{daemon} & 91.59 & 90.03 & \textbf{93.00} & \textbf{93.34}
+       & 82.38 & 78.26 & 86.03 & \textbf{88.01}
+       & 31.85 & 22.67 & 35.92 & 49.80 & 20.73 & 13.65 & 22.53 & 34.23 \\
+TiPNN~\cite{tipnn}   & -- & -- & -- & -- & -- & -- & -- & --
+       & 32.17 & 22.74 & 36.24 & 50.72 & 21.17 & 14.03 & 22.98 & 34.76 \\
+DiMNet~\cite{dimnet} & -- & -- & -- & -- & -- & -- & -- & --
+       & 34.13 & 23.29 & 38.42 & 55.80 & 21.93 & 14.03 & 23.57 & 37.49 \\
+LogCL$^\ddagger$~\cite{logcl} & -- & -- & -- & -- & -- & -- & -- & --
+       & \textbf{35.62}\sd{0.28} & 24.37\sd{0.28} & \textbf{40.32}\sd{0.41}
+       & \textbf{58.01}\sd{0.19} & -- & -- & -- & -- \\
 \midrule
-\multirow{3}{*}{WIKI}
- & DaeMon         & 82.38 & 78.26 & \textbf{86.03} & \textbf{88.01} \\
- & CountTRuCoLa   & 82.7  & --    & --    & -- \\
- & \textsc{Cadence} & \textbf{82.94}\,$\pm$0.15 & \textbf{79.84}\,$\pm$0.28 & 85.77 & 86.95 \\
-\midrule
-\multirow{3}{*}{ICEWS18}
- & DiMNet         & 34.13 & 23.29 & 38.42 & \textbf{55.80} \\
- & CountTRuCoLa   & 32.8  & --    & --    & -- \\
- & \textsc{Cadence} & \textbf{34.59}\,$\pm$0.14 & \textbf{24.78}\,$\pm$0.11 & \textbf{39.06} & 53.55 \\
-\midrule
-\multirow{3}{*}{GDELT}
- & DiMNet         & 21.93 & 14.03 & 23.57 & 37.49 \\
- & CountTRuCoLa   & 23.8  & --    & --    & -- \\
- & \textsc{Cadence}\pending{} & \textbf{26.34} & \textbf{17.59} & \textbf{29.07} & \textbf{43.44} \\
+PRISM & \textbf{91.80}\sd{0.05} & \textbf{90.62}\sd{0.11} & 92.89 & 93.12
+      & \textbf{83.49}\sd{0.04} & \textbf{80.71}\sd{0.10} & \textbf{86.14} & 87.10
+      & 35.23\sd{0.03} & \textbf{25.32}\sd{0.05} & 39.75 & 54.36
+      & \textbf{26.44}\sd{0.02} & \textbf{17.70}\sd{0.02} & \textbf{29.19}
+      & \textbf{43.56} \\
+\quad + global context & 91.74 & 90.44 & 92.88 & 93.17
+      & 83.31 & 80.32 & 86.09 & 87.15
+      & 35.43\sd{0.04} & 25.34 & 39.97 & 54.96
+      & 26.45 & 17.69 & 29.20 & 43.60 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-Margins relative to the seed standard deviation are $13.5\times$ on ICEWS18
-H@1, $5.6\times$ on WIKI and $3.6\times$ on YAGO. We lose H@10 on three of
-four datasets; Section~\ref{sec:strat} shows why.
+Table~\ref{tab:main} gives the main results. With one configuration for all
+datasets, PRISM is above the strongest reported results on YAGO ($+0.21$ MRR,
+$+0.59$ Hits@1 over DaeMon), WIKI ($+1.11$ MRR, $+2.45$ Hits@1) and GDELT
+($+4.51$ MRR, $+3.67$ Hits@1 over DiMNet), with seed standard deviations of
+$0.02$--$0.05$ MRR. On ICEWS18 it is above every published entry in the
+comparison table; against LogCL re-run under our protocol it is $0.39$ MRR lower
+($0.19$ with the global context), a difference within LogCL's own run-to-run
+standard deviation of $0.28$, while its Hits@1 is higher by $0.95$ and its
+standard deviation is roughly nine times smaller. LogCL is clearly ahead on
+Hits@10, and Section~\ref{sec:strat} explains why.
 
-\subsection{What these margins are and are not worth}
-\label{sec:comparability}
+For reference, results reported by recent papers under their own evaluation
+code are $90.9$ / $82.7$ / $32.8$ / $23.8$ MRR on YAGO / WIKI / ICEWS18 / GDELT
+for CountTRuCoLa~\cite{counttrucola} and $83.21$ on WIKI and $35.24$ on ICEWS18
+for CognTKE~\cite{cogntke}; we list them separately because we have not
+verified that their protocols match ours.
 
-We report Table~\ref{tab:main} because the field expects it, and we then argue
-that it should not carry the weight of the paper. Three facts, none of them
-ours, make that position hard to avoid.
-
-First, the comparison tables disagree with each other.
-Table~\ref{tab:main} follows DiMNet's table on the event datasets and DaeMon's
-on YAGO and WIKI. DiMNet's table does not contain LogCL, TiRGN, CENET or
-CountTRuCoLa. LogCL~\cite{logcl} reports ICEWS18 MRR $35.67$, above both
-DiMNet's $34.13$ and ours, a year before DiMNet claimed the state of the art;
-CognTKE~\cite{cogntke} reports WIKI $83.21$, above ours. Both state that they
-use the time-aware filtered protocol, as do we. They cannot all be measuring
-the same quantity, and we have not rerun them, so we do not claim to beat
-them. Gastinger et al.~\cite{gastingereval} documented precisely this and
-showed the setting alone can reverse rankings.
-
-Second, the quantity being compared is partly a shortcut. A baseline that
-ranks candidates by $(s,r)$ co-occurrence frequency and uses no temporal
-information at all comes within roughly a quarter of the state of the art on
-YAGO and WIKI and within $15\%$ on GDELT~\cite{shortcut}, and the non-learned
-recurrency baseline of~\cite{historyrepeats} outscores most published models on
-GDELT and YAGO outright. Against that background our YAGO margin of $+0.05$
-MRR over DaeMon is not evidence of anything.
-
-Third, and consequently, a pooled metric cannot separate a better mechanism
-from a better fit to the shortcut. That is what
-Section~\ref{sec:strat} is for, and it is where we ask the paper to be judged:
-the blocked stratum is by construction the subset on which a monotone
-count-and-recency scorer cannot succeed, so a gain concentrated there is
-evidence about the mechanism in a way that a pooled MRR is not.
-
-\subsection{The mechanism ablation}
-\label{sec:mech}
-
-The claim is about a functional form, so the ablation replaces the form and
-nothing else. We restrict the recurrence branch to exactly the published
-scorer, $\log a(r,o) + p(r,o)\log(1+c) - b(r,o)\,\Delta t$ with $p, b \ge 0$
-predicted from $(r,o)$ alone, and hold the backbone, the superposition rule,
-the optimiser and the schedule fixed. A unit test sweeps $\Delta t$ and $c$ over
-twenty seeds and asserts that the restricted branch is monotone in both and
-that the full branch is not.
+\subsection{What the gain comes from}
+\label{sec:ablation}
 
 \begin{table}[t]
 \centering
-\caption{Full model against the monotone kernel, MRR.}
-\label{tab:mono}
-\begin{tabular}{lccc}
+\caption{Ablations, MRR $\times100$, three seeds. ``Single softmax'' combines
+the two experts in one normalisation. Rows~2--3 change only the training
+settings that differ between that model and PRISM.}
+\label{tab:ablation}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcc}
 \toprule
-dataset & full & monotone kernel & $\Delta$ \\
+variant & WIKI & ICEWS18 \\
 \midrule
-YAGO    & 91.64 & 89.81 & $+1.83$ \\
-WIKI    & 82.94 & 74.83 & $+8.11$ \\
-ICEWS18 & 34.59 & 29.20 & $+5.39$ \\
-GDELT   & 26.34 & 21.77 & $+4.57$ \\
+single softmax, auxiliary structural loss          & 82.94\sd{0.12} & 34.77\sd{0.03} \\
+single softmax, no auxiliary loss                  & 83.05\sd{0.07} & 34.42\sd{0.09} \\
+\quad + subject context in the history expert      & 83.12\sd{0.12} & 34.56\sd{0.10} \\
+\midrule
+separate normalisation, query-dependent $\pi$      & 83.33\sd{0.09} & 35.12\sd{0.10} \\
+separate normalisation, overlapping supports       & 83.42\sd{0.02} & 35.22\sd{0.02} \\
+\textbf{separate normalisation, constant $\pi$ (PRISM)} & \textbf{83.49}\sd{0.04} & \textbf{35.23}\sd{0.03} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The monotone variant is itself near the state of the art on GDELT ($21.77$
-against $21.93$): the backbone is competitive and the kernel adds on top.
+Moving from a single softmax to separately normalised experts changes several
+things at once, so Table~\ref{tab:ablation} separates them. The single-softmax
+model was trained with an auxiliary cross-entropy on the structural scores,
+which PRISM does not use, and without the subject context in the history
+expert. Matching both settings (row~3) recovers almost none of the gap: PRISM
+remains $+0.37$ MRR ahead on WIKI and $+0.67$ on ICEWS18, four to six times the
+seed standard deviation. Within the separately normalised family, how the
+mixing weight is computed does not matter: a query-dependent router is no
+better than a single scalar, and letting the structural expert's distribution
+cover the support as well (so that the likelihood no longer factorises) gives
+the same result. What carries the gain is that the history candidates are
+normalised among themselves rather than against every entity in the graph.
+We therefore use the simplest form, a constant $\pi$.
 
-\subsection{Where the gain lands}
+\subsection{The monotone restriction}
+
+Restricting the history expert to exactly the published form,
+$\log a + p\log(1+c) - b\,\Delta t$ with $p,b\ge 0$ predicted from $(r,o)$, and
+holding everything else fixed lowers MRR from $91.72$ to $89.81$ on YAGO, from
+$82.94$ to $74.83$ on WIKI, from $34.77$ to $29.20$ on ICEWS18 and from $26.33$
+to $21.77$ on GDELT (single-softmax model in both cases; restricted variant one
+seed). A unit test sweeps $\Delta t$ and $c$ to confirm that the restricted
+expert is monotone and the full one is not. On YAGO and WIKI the loss
+concentrates on the blocked stratum ($-5.30$ and $-18.61$ Hits@1, against
+$-1.98$ and $-5.95$ on unblocked queries with a history), as
+Proposition~\ref{prop:blocked} predicts. On ICEWS18 and GDELT the restriction
+costs more on unblocked queries ($-17.44$ and $-16.03$ Hits@1) than on blocked
+ones ($-2.70$ and $-1.26$): there the additional statistics matter beyond the
+blocked configuration.
+
+\subsection{Where each approach succeeds}
 \label{sec:strat}
 
-A pooled metric cannot say whether a gain came from the mechanism this paper
-argues for. We therefore partition the test set into three disjoint strata:
-\emph{blocked}, where a distractor dominates the answer in both $\Delta t$ and
-count; \emph{clean}, where the answer has a history and is not dominated; and
-\emph{no-history}, where the answer never occurred with $(s,r)$ before. Only
-the first is the target of Proposition~\ref{prop:blocked}.
+\begin{table}[t]
+\centering
+\caption{ICEWS18 by stratum, MRR / Hits@10 $\times100$, mean of three runs.
+LogCL scores are ranked by our evaluation code. Shares are of all test
+queries.}
+\label{tab:strat}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lccc}
+\toprule
+stratum (share) & LogCL & PRISM & $\Delta$ MRR \\
+\midrule
+clean (${\approx}23\%$)       & 69.62 / 89.86 & \textbf{86.70} / \textbf{99.00} & $+17.08$ \\
+blocked (${\approx}27\%$)     & \textbf{34.16} / 66.15 & 32.42 / \textbf{69.63} & $-1.74$ \\
+no history ($50.1\%$)         & \textbf{20.53} / \textbf{38.84} & 12.70 / 25.43 & $-7.83$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\todo{Insert the stratified table once the remaining seeds land. The finding so
-far, as H@1 gained over the monotone kernel: on YAGO the blocked stratum gains
-$+5.66$ against $+1.77$ on clean, and on WIKI $+18.31$ against $+6.61$ --- the
-gain concentrates where the proposition says the restricted form cannot
-succeed. On ICEWS18 and GDELT the ordering inverts, which we attribute to those
-datasets being dominated by the no-history stratum, where neither form applies;
-state this, do not hide it.}
+Pooled metrics hide how differently two models can reach similar numbers. We
+partition the ICEWS18 test set into three disjoint strata --- \emph{clean}
+(the answer has a history and is not dominated), \emph{blocked}, and
+\emph{no history} (the answer never occurred with $(s,r)$) --- and rank LogCL's
+saved scores with the same code (Table~\ref{tab:strat}). Wherever the answer
+has a history with the subject, PRISM is far ahead: $+17.1$ MRR on clean
+queries, and higher Hits@10 on blocked ones. The whole deficit comes from the
+half of the queries whose answer has no history, where LogCL's global history
+encoder reaches $20.5$ MRR and PRISM $12.7$. Weighted by the stratum shares,
+these two effects nearly cancel, which is why the pooled MRRs are close and why
+LogCL leads on Hits@10. The two approaches are complementary, and the
+no-history stratum is the clearest direction for improving PRISM.
 
-\section{Two Negative Results}
+\subsection{Global history context}
+\label{sec:global-res}
+
+The optional global context of Section~\ref{sec:global} targets exactly that
+stratum. On ICEWS18 it raises MRR from $35.23$ to $35.43$ and Hits@10 from
+$54.36$ to $54.96$ over three seeds, with the gain on no-history queries
+(Hits@10 $25.43 \to 26.08$). It leaves YAGO and GDELT unchanged and lowers WIKI
+by $0.18$, where nearly all answers have a history; a second hop of
+aggregation adds nothing further. It narrows the no-history gap but does not
+close it, and we do not include it in the default configuration.
+
+%% ════════════════════════════════════════════════════════════════════════════
+\section{Negative Results}
 \label{sec:negative}
 
-\paragraph{Deep supervision on the structural branch hurts}
-Paired on three seeds, adding a cross-entropy on the structural scores alone
-costs $0.87$ MRR and $1.66$ H@1 on YAGO, in the same direction on every seed,
-and raises the seed standard deviation from $0.04$ to $0.42$. It was
-introduced to stop recurrence from starving the structural branch; on a
-$92.8\%$-recurrent dataset that trade is not worth making.
+We report designs that did not work, since each rules out an explanation.
+\emph{An auxiliary structural loss} hurt on YAGO ($-0.87$ MRR, three seeds) and
+raised seed variance. \emph{A path-based third expert} in the style of DaeMon
+doubled Hits@1 on the no-history stratum of YAGO but lowered overall MRR, at
+roughly fifty times the cost of the other branches. \emph{Conditioning the
+history expert on the subject} was intended to let it step back on
+no-history queries; it changed that stratum by at most $0.2$ Hits@1. And
+extending the support with \emph{two-hop candidates} was ruled out before
+building it: two-hop sets are large (median $4{,}098$ entities on ICEWS18), and
+ranking them by path count places fewer no-history answers in the top $64$
+($12\%$) than PRISM already places in its top $10$ ($25\%$).
 
-\paragraph{A path branch does not pay at our scale}
-We reimplemented DaeMon's query-conditioned propagation as a third intensity,
-with no entity embeddings. It doubled H@1 on the stratum where the answer has
-no $(s,r)$ history ($0.79 \rightarrow 1.68$ on YAGO) --- exactly the stratum
-it targets --- and still lost overall ($91.46$ against $91.64$ MRR), because
-that stratum is only $7.3\%$ of YAGO. Its state is
-(queries $\times$ entities $\times$ dim), roughly $50\times$ the arithmetic of
-the other branches.
-
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Limitations}
 
-\paragraph{The no-history stratum}
-The stratum where the answer has no $(s,r)$ history is the largest single pool
-of failures on the event datasets: $50.1\%$ of ICEWS18 at $5.65$ H@1 and
-$40.4\%$ of GDELT at $1.63$. Query conditioning lets the recurrence intensity
-step back on such queries, but it cannot supply evidence the branch does not
-have; the structural branch is weak there and we do not close this.
+The no-history stratum remains the main open problem on event datasets. On
+ICEWS18 our model is on par with, not ahead of, the strongest model we re-ran,
+and behind it on Hits@10. We re-ran one recent model rather than all of them.
+All four benchmarks are known to be partly solvable by co-occurrence
+statistics~\cite{shortcut}; our stratified evaluation is a response to this,
+not a solution, and the bias-corrected datasets proposed there are a natural
+next test.
 
-\paragraph{Baselines are quoted, not rerun}
-Section~\ref{sec:protocol} removes the filtering and query-count risk in
-\emph{our} harness, but it says nothing about theirs. Since published tables in
-this area disagree (Section~\ref{sec:comparability}), the honest statement is
-that we match or exceed the tables we are measured against and that no
-cross-table claim in this literature, ours included, is currently safe. Rerunning
-LogCL~\cite{logcl} and one 2026 method under our harness is the obvious next
-step and is not done here.
+%% ════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
 
-\paragraph{Benchmarks}
-All four datasets are known to be partly solvable by a co-occurrence
-shortcut~\cite{shortcut,historyrepeats}. Our stratified evaluation is a
-response to this, not a solution to it; the bias-corrected replacements
-proposed in~\cite{shortcut} appeared too recently for us to use, and the
-diagnostic of Section~\ref{sec:blocked} applies unchanged to them.
-
-\paragraph{Other}
-H@10 is below the compared systems on three datasets. We report three seeds,
-and one on GDELT.
-
-\section*{Acknowledgements}
-\todo{Per venue policy, disclose tooling used in preparation if required.}
+Recurrence scorers that are monotone in count and elapsed time cannot order a
+measurable share of forecasting queries, whatever their parameters. An
+unconstrained recurrence intensity removes that limit, and normalising history
+and structure as separate experts, rather than inside one softmax, adds a
+consistent further gain that our ablations attribute to the separation itself.
+The resulting model is strongest exactly where a history exists, and the
+stratified comparison points to the queries without one as the place where the
+next improvement must come from.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
