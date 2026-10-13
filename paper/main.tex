@@ -382,7 +382,10 @@ $6.0$M on YAGO and $8.6$M on ICEWS18, dominated by the entity table.
 standard deviation over three seeds, one configuration for all datasets.
 $^\ddagger$ re-run by us under our evaluation code, three runs.}
 \label{tab:main}
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3pt}
+%% Sixteen numeric columns, four with a standard deviation, are wider than
+%% \textwidth; scale the whole table to fit instead of letting it overflow.
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{l cccc cccc cccc cccc}
 \toprule
 & \multicolumn{4}{c}{YAGO} & \multicolumn{4}{c}{WIKI}
@@ -422,7 +425,7 @@ PRISM & \textbf{91.80}\sd{0.05} & \textbf{90.62}\sd{0.11} & 92.89 & 93.12
       & 35.43\sd{0.04} & 25.34 & 39.97 & 54.96
       & 26.45 & 17.69 & 29.20 & 43.60 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table*}
 
 Table~\ref{tab:main} gives the main results. With one configuration for all
