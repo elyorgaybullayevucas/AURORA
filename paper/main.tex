@@ -80,8 +80,21 @@ vector~\cite{regcn,tirgn}, a historical/non-historical
 decomposition~\cite{cenet}, a temporal point process with a learned decay
 rate~\cite{gattnhp}, or a learned rule confidence~\cite{counttrucola}.
 
+\begin{figure}[t]
+\centering
+\includesvg[width=\columnwidth]{intro_example}
+\caption{An illustrative forecasting query (entities, event types and dates
+are illustrative, not taken from a dataset). The answer, France, recurs at a
+regular interval of about thirty days and is due again; the distractor,
+Turkey, occurred both more often and more recently. Every recurrence scorer
+that rises with the count and falls with the elapsed time ranks Turkey first,
+whatever its parameters (Proposition~\ref{prop:blocked}). The history expert
+of PRISM reads the full inter-arrival pattern and is not bound by this.}
+\label{fig:intro}
+\end{figure}
+
 We start from a question these designs leave open: what can such a term
-\emph{not} express? Read as scorers, all of them assign a historical candidate
+\emph{not} express? Fig.~\ref{fig:intro} gives an example. Read as scorers, all of them assign a historical candidate
 a value that is non-decreasing in its count and non-increasing in the time
 since its last occurrence. This shared monotonicity has a consequence that is
 provable in one line (Proposition~\ref{prop:blocked}): if a distractor occurred
@@ -235,14 +248,20 @@ unable to order the candidates on its own.
 
 \begin{figure*}[t]
 \centering
-\includesvg[width=\textwidth]{architecture}
-\caption{Overview. The structural expert evolves entity states over the recent
-snapshots and scores entities with a ConvTransE decoder. The history expert
-scores every candidate in the support $S$ from thirteen inter-arrival
-statistics through an unconstrained network. Each expert is normalised over
-its own set of entities, and the two distributions are mixed.
-\todo{redraw the combination step: separate normalisation and mixture
-replace the single logaddexp shown here.}}
+\includesvg[width=\textwidth]{architecture_prism}
+\caption{Overview of PRISM. \emph{Top left:} the structural expert evolves
+entity states over the last $H$ snapshots with cross-time GCN layers, an
+active/stable split and a GRU, and a ConvTransE decoder scores every entity
+($f_{\mathrm{str}}$); an optional global context summarises each entity's
+full history before $t$. \emph{Bottom left:} the history expert reads the
+observed occurrences of every candidate in the support $S$, summarises them by
+thirteen inter-arrival statistics and maps them through an unconstrained
+network ($f_{\mathrm{rec}}$), so it is not bound by
+Proposition~\ref{prop:blocked}. \emph{Right:} the entity set is partitioned
+into $S$ and its complement; the structural expert is normalised over the
+complement, the history expert over $S$, and the two distributions are mixed
+with a single learned weight $\pi$ into one exact distribution over all
+entities.}
 \label{fig:arch}
 \end{figure*}
 
