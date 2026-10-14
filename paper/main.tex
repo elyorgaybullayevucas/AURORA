@@ -38,7 +38,7 @@ falls with how long ago. We show that this whole family has a provable blind
 spot: whenever a distractor occurred both more often and more recently than the
 answer, no such scorer can rank the answer first, however it is
 parameterised. The property is defined without reference to any model, so its
-extent is a statistic of the data: $41.6\%$, $29.3\%$, $26.6\%$ and $15.8\%$ of
+extent is a statistic of the data: $43.7\%$, $48.6\%$, $26.6\%$ and $38.1\%$ of
 test queries on YAGO, WIKI, ICEWS18 and GDELT. We introduce PRISM, which makes
 two changes. Its recurrence intensity is an unconstrained function of thirteen
 inter-arrival statistics, outside the constrained family in both of the ways
@@ -218,26 +218,27 @@ quantities. Section~\ref{sec:rec} takes both.
 
 \begin{table}[t]
 \centering
-\caption{Monotone-blocked queries, measured on 20{,}000 sampled test queries
-per dataset. No model is involved.}
+\caption{Monotone-blocked queries on the full test set, both query
+directions, with the same definitions as the stratified evaluation of
+Section~\ref{sec:strata}. No model is involved.}
 \label{tab:blocked}
 \begin{tabular}{lccc}
 \toprule
 dataset & answer has history & blocked (of those) & blocked / all \\
 \midrule
-YAGO    & 92.8\% & 44.8\% & \textbf{41.6\%} \\
-WIKI    & 87.0\% & 33.7\% & \textbf{29.3\%} \\
-ICEWS18 & 47.7\% & 55.7\% & \textbf{26.6\%} \\
-GDELT   & 24.9\% & 63.4\% & \textbf{15.8\%} \\
+YAGO    & 92.7\% & 47.1\% & \textbf{43.7\%} \\
+WIKI    & 86.8\% & 55.9\% & \textbf{48.6\%} \\
+ICEWS18 & 49.9\% & 53.2\% & \textbf{26.6\%} \\
+GDELT   & 59.6\% & 63.8\% & \textbf{38.1\%} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:blocked} separates two regimes. On YAGO and WIKI almost every
-answer has a history, so recurrence decides the task and the blocked share of
-all queries is large. On ICEWS18 and GDELT most answers have no history; the
-blocked share of all queries is smaller, but among the queries that do have a
-history it is \emph{higher}. A structural component can rescue a blocked
+On YAGO and WIKI almost every answer has a history with $(s,r)$, so
+recurrence decides most of the task. On ICEWS18 and GDELT only half to
+three-fifths of the answers do, but among those the blocked share is as high
+or higher, reaching $63.8\%$ on GDELT. On every dataset, between a quarter and
+a half of all test queries are blocked (Table~\ref{tab:blocked}). A structural component can rescue a blocked
 query, since the bound applies to the recurrence term alone; what the table
 shows is how often the term that carries the strongest signal of the task is
 unable to order the candidates on its own.
@@ -518,8 +519,8 @@ queries.}
 \toprule
 stratum (share) & LogCL & PRISM & $\Delta$ MRR \\
 \midrule
-clean (${\approx}23\%$)       & 69.62 / 89.86 & \textbf{86.70} / \textbf{99.00} & $+17.08$ \\
-blocked (${\approx}27\%$)     & \textbf{34.16} / 66.15 & 32.42 / \textbf{69.63} & $-1.74$ \\
+clean ($23.4\%$)              & 69.62 / 89.86 & \textbf{86.70} / \textbf{99.00} & $+17.08$ \\
+blocked ($26.6\%$)            & \textbf{34.16} / 66.15 & 32.42 / \textbf{69.63} & $-1.74$ \\
 no history ($50.1\%$)         & \textbf{20.53} / \textbf{38.84} & 12.70 / 25.43 & $-7.83$ \\
 \bottomrule
 \end{tabular}

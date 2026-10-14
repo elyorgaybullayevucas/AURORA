@@ -230,7 +230,7 @@
   <rect x="0" y="0" width="186" height="58" rx="10" fill="#ffffff" stroke="#c0392b" stroke-width="1.4" filter="url(#sh2)"/>
   <text x="12" y="20" font-size="11.5" font-weight="700" fill="#c0392b">Proposition 1</text>
   <text x="12" y="36" font-size="9.5" fill="#5b6670">no monotone scorer ranks o★ above o′</text>
-  <text x="12" y="50" font-size="9.5" fill="#5b6670">15.8–41.6% of test queries</text>
+  <text x="12" y="50" font-size="9.5" fill="#5b6670">26.6–48.6% of test queries</text>
 </g>
 
 <!-- ═══ RIGHT PANEL ═══ -->
