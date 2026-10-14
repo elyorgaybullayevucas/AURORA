@@ -53,8 +53,8 @@ strongest results reported for these benchmarks, and matches a strong recent
 model on ICEWS18 that we re-ran under our own verified protocol, with higher
 Hits@1 and a run-to-run standard deviation roughly nine times smaller. A stratified evaluation
 shows where each approach is strong: PRISM leads by $17$ MRR on queries whose
-answer has a history with the subject, and trails on queries whose answer has
-none, which we identify as the main open problem.
+answer has a history with the subject and is not dominated by a distractor,
+and trails on queries whose answer has none, which we identify as the main open problem.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -373,7 +373,8 @@ statistics depend only on the query and on earlier facts, so they are computed
 once per dataset and served from a shared memory-mapped cache; this makes an
 epoch $1.5$--$24\times$ faster (GDELT: from $25$--$50$ to about $2$ minutes on
 one A100) and leaves every input tensor bit-identical. Parameter counts are
-$6.0$M on YAGO and $8.6$M on ICEWS18, dominated by the entity table.
+$6.0$M on YAGO and $8.6$M on ICEWS18 (excluding the unused query router
+kept for the ablation), dominated by the entity table.
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Results}
@@ -478,8 +479,8 @@ things at once, so Table~\ref{tab:ablation} separates them. The single-softmax
 model was trained with an auxiliary cross-entropy on the structural scores,
 which PRISM does not use, and without the subject context in the history
 expert. Matching both settings (row~3) recovers almost none of the gap: PRISM
-remains $+0.37$ MRR ahead on WIKI and $+0.67$ on ICEWS18, four to six times the
-seed standard deviation. Within the separately normalised family, how the
+remains $+0.37$ MRR ahead on WIKI and $+0.67$ on ICEWS18, three to seven times
+the larger of the two seed standard deviations. Within the separately normalised family, how the
 mixing weight is computed does not matter: a query-dependent router is no
 better than a single scalar, and letting the structural expert's distribution
 cover the support as well (so that the likelihood no longer factorises) gives
@@ -528,12 +529,12 @@ Pooled metrics hide how differently two models can reach similar numbers. We
 partition the ICEWS18 test set into three disjoint strata --- \emph{clean}
 (the answer has a history and is not dominated), \emph{blocked}, and
 \emph{no history} (the answer never occurred with $(s,r)$) --- and rank LogCL's
-saved scores with the same code (Table~\ref{tab:strat}). Wherever the answer
-has a history with the subject, PRISM is far ahead: $+17.1$ MRR on clean
-queries, and higher Hits@10 on blocked ones. The whole deficit comes from the
-half of the queries whose answer has no history, where LogCL's global history
-encoder reaches $20.5$ MRR and PRISM $12.7$. Weighted by the stratum shares,
-these two effects nearly cancel, which is why the pooled MRRs are close and why
+saved scores with the same code (Table~\ref{tab:strat}). On clean queries
+PRISM is far ahead ($+17.1$ MRR); on blocked queries it is slightly behind in
+MRR ($-1.7$) but ahead in Hits@10. Most of the deficit comes from the half of
+the queries whose answer has no history, where LogCL reaches $20.5$ MRR and
+PRISM $12.7$. Weighted by the stratum shares, the clean-query advantage and the
+no-history deficit nearly cancel, which is why the pooled MRRs are close and why
 LogCL leads on Hits@10. The two approaches are complementary, and the
 no-history stratum is the clearest direction for improving PRISM.
 
@@ -583,7 +584,7 @@ measurable share of forecasting queries, whatever their parameters. An
 unconstrained recurrence intensity removes that limit, and normalising history
 and structure as separate experts, rather than inside one softmax, adds a
 consistent further gain that our ablations attribute to the separation itself.
-The resulting model is strongest exactly where a history exists, and the
+The resulting model is strongest where the answer has an undominated history, and the
 stratified comparison points to the queries without one as the place where the
 next improvement must come from.
 
